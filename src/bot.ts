@@ -1,5 +1,3 @@
-import "dotenv/config";
-
 import { Bot, Context, GrammyError, HttpError, NextFunction } from "grammy";
 import {
   getGroupMembers,
@@ -10,7 +8,7 @@ import {
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) {
-  console.error("Error: TELEGRAM_BOT_TOKEN is not set in .env file");
+  console.error("Error: TELEGRAM_BOT_TOKEN environment variable is not set");
   process.exit(1);
 }
 

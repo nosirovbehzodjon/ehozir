@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import type { Chat, User } from "grammy/types";
 
@@ -7,7 +6,7 @@ const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!url || !key) {
   console.error(
-    "Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env",
+    "Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables must be set",
   );
   process.exit(1);
 }
