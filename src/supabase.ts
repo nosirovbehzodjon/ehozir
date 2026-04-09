@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import type { Chat, User } from "grammy/types";
 
@@ -35,9 +36,9 @@ export async function upsertGroupAndMember(
 
   const groupRow = {
     chat_id: chat.id,
-    title: "title" in chat ? chat.title ?? null : null,
+    title: "title" in chat ? (chat.title ?? null) : null,
     type: chat.type,
-    username: "username" in chat ? chat.username ?? null : null,
+    username: "username" in chat ? (chat.username ?? null) : null,
     updated_at: now,
   };
 
@@ -93,7 +94,9 @@ export type GroupStats = {
 export async function getGroupStats(chatId: number): Promise<GroupStats> {
   const { data, error } = await supabase
     .from("groups")
-    .select("member_count, telegram_member_count, telegram_member_count_updated_at")
+    .select(
+      "member_count, telegram_member_count, telegram_member_count_updated_at",
+    )
     .eq("chat_id", chatId)
     .maybeSingle();
 
@@ -113,7 +116,9 @@ export async function getGroupMembers(
 ): Promise<GroupMemberRow[]> {
   const { data, error } = await supabase
     .from("group_members")
-    .select("chat_id,user_id,username,first_name,last_name,is_bot,language_code")
+    .select(
+      "chat_id,user_id,username,first_name,last_name,is_bot,language_code",
+    )
     .eq("chat_id", chatId)
     .eq("is_bot", false);
 
