@@ -4,7 +4,7 @@
   "description": "Telegram bot that mentions all group members on /hamma or /all commands",
   "main": "dist/bot.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "start": "node dist/bot.js",
     "dev": "tsx watch --env-file=.env src/bot.ts",
     "typecheck": "tsc --noEmit"
@@ -19,10 +19,13 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
     "cz-conventional-changelog": "^3.3.0",
-    "grammy": "^1.30.0"
+    "grammy": "^1.30.0",
+    "node-cron": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",
+    "@types/node-cron": "^3.0.11",
+    "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
     "typescript": "^5.5.0"
   },

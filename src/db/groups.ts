@@ -1,19 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "./client";
 import type { Chat, User } from "grammy/types";
-
-const url = process.env.SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!url || !key) {
-  console.error(
-    "Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables must be set",
-  );
-  process.exit(1);
-}
-
-export const supabase = createClient(url, key, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
 
 export type GroupMemberRow = {
   chat_id: number;
@@ -23,6 +9,12 @@ export type GroupMemberRow = {
   last_name: string | null;
   is_bot: boolean;
   language_code: string | null;
+};
+
+export type GroupStats = {
+  tracked: number;
+  total: number | null;
+  totalUpdatedAt: string | null;
 };
 
 export async function upsertGroupAndMember(
@@ -68,6 +60,24 @@ export async function upsertGroupAndMember(
   }
 }
 
+export async function getGroupMembers(
+  chatId: number,
+): Promise<GroupMemberRow[]> {
+  const { data, error } = await supabase
+    .from("group_members")
+    .select(
+      "chat_id,user_id,username,first_name,last_name,is_bot,language_code",
+    )
+    .eq("chat_id", chatId)
+    .eq("is_bot", false);
+
+  if (error) {
+    console.error("group_members select error:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 export async function setTelegramMemberCount(
   chatId: number,
   count: number,
@@ -83,12 +93,6 @@ export async function setTelegramMemberCount(
     console.error("groups telegram_member_count update error:", error.message);
   }
 }
-
-export type GroupStats = {
-  tracked: number;
-  total: number | null;
-  totalUpdatedAt: string | null;
-};
 
 export async function getGroupStats(chatId: number): Promise<GroupStats> {
   const { data, error } = await supabase
@@ -108,22 +112,4 @@ export async function getGroupStats(chatId: number): Promise<GroupStats> {
     total: data?.telegram_member_count ?? null,
     totalUpdatedAt: data?.telegram_member_count_updated_at ?? null,
   };
-}
-
-export async function getGroupMembers(
-  chatId: number,
-): Promise<GroupMemberRow[]> {
-  const { data, error } = await supabase
-    .from("group_members")
-    .select(
-      "chat_id,user_id,username,first_name,last_name,is_bot,language_code",
-    )
-    .eq("chat_id", chatId)
-    .eq("is_bot", false);
-
-  if (error) {
-    console.error("group_members select error:", error.message);
-    return [];
-  }
-  return data ?? [];
 }
