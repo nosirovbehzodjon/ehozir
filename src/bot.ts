@@ -5,6 +5,7 @@ import { registerStats } from "@/commands/stats";
 import { registerHelp } from "@/commands/help";
 import { registerNews } from "@/commands/news";
 import { registerTestNews } from "@/commands/testNews";
+import { registerSettings } from "@/commands/settings";
 import { registerLanguage } from "@/commands/language";
 import { registerNsfwMiddleware } from "@/middleware/nsfw";
 import { loadModel } from "@/services/nsfw";
@@ -31,6 +32,7 @@ registerStats(bot);
 registerHelp(bot);
 registerNews(bot);
 registerTestNews(bot);
+registerSettings(bot);
 
 // Schedulers
 startDailyNewsScheduler(bot);
@@ -78,6 +80,7 @@ loadModel()
         "chat_member",
         "my_chat_member",
         "message_reaction",
+        "callback_query",
       ],
       onStart: () =>
         console.log(

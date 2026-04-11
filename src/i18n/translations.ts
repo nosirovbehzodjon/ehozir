@@ -45,6 +45,7 @@ type Translation = {
   nsfwBannedProfile: (name: string) => string;
   nsfwBannedImage: (name: string) => string;
   nsfwBannedChannel: (name: string) => string;
+  nsfwReactionRepost: string;
 
   // Command list for /help
   commands: CommandInfo[];
@@ -88,6 +89,8 @@ export const translations: Record<Lang, Translation> = {
       `Foydalanuvchi ${name} bloklandi: NSFW rasm aniqlandi.`,
     nsfwBannedChannel: (name) =>
       `Foydalanuvchi ${name} bloklandi: NSFW kanal rasmi aniqlandi.`,
+    nsfwReactionRepost:
+      "Sizning postingizga nojo'ya profilli foydalanuvchi reaksiya qoldirdi, shuning uchun postni qayta joyladik.",
 
     commands: [
       {
@@ -170,6 +173,8 @@ export const translations: Record<Lang, Translation> = {
       `Пользователь ${name} заблокирован: обнаружено NSFW изображение.`,
     nsfwBannedChannel: (name) =>
       `Пользователь ${name} заблокирован: обнаружено NSFW фото канала.`,
+    nsfwReactionRepost:
+      "На ваш пост отреагировал пользователь с непристойным профилем, поэтому мы переопубликовали пост.",
 
     commands: [
       {
@@ -249,6 +254,8 @@ export const translations: Record<Lang, Translation> = {
       `User ${name} was banned: NSFW image detected.`,
     nsfwBannedChannel: (name) =>
       `User ${name} was banned: NSFW channel photo detected.`,
+    nsfwReactionRepost:
+      "A user with a sensitive profile reacted to your post, so we reposted it.",
 
     commands: [
       {

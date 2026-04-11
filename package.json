@@ -23,11 +23,13 @@
     "grammy": "^1.30.0",
     "jpeg-js": "^0.4.4",
     "node-cron": "^4.2.1",
-    "nsfwjs": "^4.3.0"
+    "nsfwjs": "^4.3.0",
+    "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",
     "@types/node-cron": "^3.0.11",
+    "@types/pngjs": "^6.0.5",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
     "typescript": "^5.5.0"
