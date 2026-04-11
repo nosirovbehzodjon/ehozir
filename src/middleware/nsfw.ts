@@ -254,9 +254,6 @@ async function checkUserProfile(
     if (checked) return false;
   }
 
-  // Mark as checked early to prevent duplicate checks
-  await markAsChecked(user.id);
-
   console.log(
     `NSFW: checking profile of ${user.first_name ?? user.id} (${user.id})`,
   );
@@ -363,6 +360,9 @@ async function checkUserProfile(
   } catch (err) {
     console.error(`NSFW: personal channel check failed for ${user.id}:`, err);
   }
+
+  // Mark as checked only after all checks completed successfully
+  await markAsChecked(user.id);
 
   return false;
 }
