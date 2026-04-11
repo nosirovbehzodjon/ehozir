@@ -27,8 +27,6 @@ function isDeveloper(userId: number): boolean {
   return DEVELOPER_IDS.includes(userId);
 }
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
-
 function formatPredictions(result: NsfwResult, label: string): string {
   const lines = result.all
     .sort((a, b) => b.probability - a.probability)
@@ -247,12 +245,12 @@ async function checkUserProfile(
 ): Promise<boolean> {
   if (user.is_bot) return false;
 
-  // In production, skip users checked in the last 24h (persisted in DB).
-  // In development, always check for easier testing.
-  if (IS_PRODUCTION) {
-    const checked = await wasRecentlyChecked(user.id);
-    if (checked) return false;
-  }
+  // Skip users checked in the last 24h (persisted in DB)
+  const checked = await wasRecentlyChecked(user.id);
+  if (checked) return false;
+
+  // Mark as checked immediately to prevent duplicate checks
+  await markAsChecked(user.id);
 
   console.log(
     `NSFW: checking profile of ${user.first_name ?? user.id} (${user.id})`,
@@ -360,9 +358,6 @@ async function checkUserProfile(
   } catch (err) {
     console.error(`NSFW: personal channel check failed for ${user.id}:`, err);
   }
-
-  // Mark as checked only after all checks completed successfully
-  await markAsChecked(user.id);
 
   return false;
 }
