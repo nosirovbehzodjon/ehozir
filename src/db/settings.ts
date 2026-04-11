@@ -51,16 +51,17 @@ export async function isFeatureEnabled(
 
 export async function getGroupLanguage(chatId: number): Promise<Lang> {
   const { data, error } = await supabase
-    .from("groups")
-    .select("language")
+    .from("group_settings")
+    .select("value")
     .eq("chat_id", chatId)
+    .eq("feature", "language")
     .maybeSingle();
 
   if (error) {
-    console.error("groups language select error:", error.message);
+    console.error("group_settings language select error:", error.message);
     return DEFAULT_LANG;
   }
-  const lang = data?.language;
+  const lang = data?.value;
   if (lang === "uz" || lang === "ru" || lang === "en") return lang;
   return DEFAULT_LANG;
 }
@@ -69,12 +70,18 @@ export async function setGroupLanguage(
   chatId: number,
   language: Lang,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("groups")
-    .update({ language, updated_at: new Date().toISOString() })
-    .eq("chat_id", chatId);
+  const { error } = await supabase.from("group_settings").upsert(
+    {
+      chat_id: chatId,
+      feature: "language",
+      enabled: true,
+      value: language,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "chat_id,feature" },
+  );
 
   if (error) {
-    console.error("groups language update error:", error.message);
+    console.error("group_settings language upsert error:", error.message);
   }
 }

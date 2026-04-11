@@ -16,10 +16,13 @@ A multi-feature Telegram bot for Uzbek community groups built with TypeScript an
 - Per-group language setting with `/uz`, `/ru`, `/en`
 
 ### Daily News
-- Enable daily news delivery for groups with `/news`
-- News items are managed via Supabase dashboard
-- Click tracking via Supabase Edge Function for analytics
-- Configurable delivery time (06:00-21:00 Tashkent time) via `/settings`
+- Fetches latest news from daryo.uz automatically
+- Delivers 8 articles per send to subscribed groups
+- Multiple delivery times per day (default 11:00 and 19:00 Tashkent time)
+- Enable/disable per group with `/news` and `/cancelNews`
+- Click tracking via Supabase Edge Function for partner statistics
+- Configurable delivery times via `/settings` (developer-only, bot chat)
+- Per-source click statistics via `/newsstats` (developer-only, bot chat)
 
 ### NSFW Protection
 - Automatic detection and banning of users with sensitive content
@@ -30,8 +33,9 @@ A multi-feature Telegram bot for Uzbek community groups built with TypeScript an
 - Always active, no configuration needed
 
 ### Developer Tools
-- `/testNews` — send news to all groups immediately
-- `/settings` — configure bot settings (news time) with inline keyboard
+- `/testNews` — send news to current group immediately (group only)
+- `/settings` — configure news delivery times with inline keyboard (bot chat only)
+- `/newsstats` — view news click statistics per source (bot chat only)
 - Full NSFW classification breakdown shown for message photos
 - Developers are exempt from NSFW bans (receive notification instead)
 - Error and ban notifications sent via Telegram DM
@@ -42,6 +46,7 @@ A multi-feature Telegram bot for Uzbek community groups built with TypeScript an
 - **Bot Framework**: [grammY](https://grammy.dev/)
 - **Database**: [Supabase](https://supabase.com/) (PostgreSQL)
 - **ML**: [NSFWJS](https://github.com/infinitered/nsfwjs) + TensorFlow.js
+- **News**: daryo.uz API
 - **Deployment**: Railway
 
 ## Setup
@@ -74,7 +79,7 @@ NODE_ENV=production
 
 ### Database Setup
 
-Open Supabase Dashboard → SQL Editor → paste the contents of `schema.sql` → Run.
+Open Supabase Dashboard -> SQL Editor -> paste the contents of `schema.sql` -> Run.
 
 The script is idempotent and safe to re-run whenever the schema changes.
 
@@ -83,7 +88,7 @@ The script is idempotent and safe to re-run whenever the schema changes.
 Deploy the news click tracking function:
 
 ```bash
-npx supabase functions deploy redirect --no-verify-jwt
+npm run deploy:functions
 ```
 
 ### Running
@@ -102,10 +107,12 @@ npm run build && npm start
 
 ### Bot Configuration
 
-1. Set bot privacy mode to **disabled** via @BotFather (`/setprivacy` → Disable) so the bot can track all messages
+1. Set bot privacy mode to **disabled** via @BotFather (`/setprivacy` -> Disable) so the bot can track all messages
 2. Make the bot an **admin** in groups so it can ban users, delete messages, and track `chat_member` events
 
 ## Commands
+
+### Group commands (all users)
 
 | English | Uzbek | Russian | Description |
 |---------|-------|---------|-------------|
@@ -117,8 +124,20 @@ npm run build && npm start
 | `/uz` | — | — | Switch to Uzbek |
 | `/ru` | — | — | Switch to Russian |
 | `/en` | — | — | Switch to English |
-| `/testNews` | — | — | Send news now (dev only) |
-| `/settings` | — | — | Bot settings (dev only) |
+
+### Developer commands (group)
+
+| Command | Description |
+|---------|-------------|
+| `/testNews` | Send news to current group now |
+
+### Developer commands (bot chat only)
+
+| Command | Description |
+|---------|-------------|
+| `/settings` | Configure news delivery times |
+| `/newsstats` | View news click statistics |
+| `/newsstats daryo` | View detailed stats for a source |
 
 ## Project Structure
 
@@ -127,13 +146,13 @@ src/
   bot.ts              — Entry point
   commands/           — Command handlers
   middleware/         — Message tracking & NSFW protection
-  services/           — NSFWJS image classification
+  services/           — NSFWJS classification, news fetching
   scheduler/          — Daily news cron job
   db/                 — Supabase database helpers
   i18n/               — Translations (uz/ru/en)
   utils/              — Markdown escaping, notifications
 schema.sql            — Database DDL (idempotent)
-supabase/functions/   — Edge Functions
+supabase/functions/   — Edge Functions (click tracking)
 ```
 
 ## License

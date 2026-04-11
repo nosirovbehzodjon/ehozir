@@ -6,6 +6,7 @@ import { registerHelp } from "@/commands/help";
 import { registerNews } from "@/commands/news";
 import { registerTestNews } from "@/commands/testNews";
 import { registerSettings } from "@/commands/settings";
+import { registerNewsStats } from "@/commands/newsStats";
 import { registerLanguage } from "@/commands/language";
 import { registerNsfwMiddleware } from "@/middleware/nsfw";
 import { loadModel } from "@/services/nsfw";
@@ -33,6 +34,7 @@ registerHelp(bot);
 registerNews(bot);
 registerTestNews(bot);
 registerSettings(bot);
+registerNewsStats(bot);
 
 // Schedulers
 startDailyNewsScheduler(bot);

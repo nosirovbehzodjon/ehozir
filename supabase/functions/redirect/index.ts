@@ -13,9 +13,8 @@ Deno.serve(async (req) => {
     return new Response("Missing or invalid news id", { status: 400 });
   }
 
-  // Look up the news link
   const { data: news, error } = await supabase
-    .from("news")
+    .from("external_news")
     .select("link")
     .eq("id", newsId)
     .maybeSingle();
@@ -25,12 +24,11 @@ Deno.serve(async (req) => {
   }
 
   // Record the click
-  await supabase.from("news_clicks").insert({
+  await supabase.from("external_news_clicks").insert({
     news_id: newsId,
     chat_id: chatId ? Number(chatId) : null,
   });
 
-  // Redirect to the actual website
   return new Response(null, {
     status: 302,
     headers: { Location: news.link },

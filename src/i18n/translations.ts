@@ -8,6 +8,11 @@ type CommandInfo = {
   usage: string;
 };
 
+type CommandCategory = {
+  title: string;
+  commands: CommandInfo[];
+};
+
 type Translation = {
   // General
   groupOnly: string;
@@ -48,7 +53,9 @@ type Translation = {
   nsfwReactionRepost: string;
 
   // Command list for /help
-  commands: CommandInfo[];
+  groupCommands: CommandCategory;
+  devGroupCommands: CommandCategory;
+  devBotCommands: CommandCategory;
 };
 
 export const translations: Record<Lang, Translation> = {
@@ -82,7 +89,6 @@ export const translations: Record<Lang, Translation> = {
     newsSent: (count) => `Tayyor. ${count} ta guruhga yangiliklar yuborildi.`,
 
     dailyNewsHeader: "📰 Kundalik yangiliklar:\n\n",
-
     nsfwBannedProfile: (name) =>
       `Foydalanuvchi ${name} bloklandi: NSFW profil rasmi aniqlandi.`,
     nsfwBannedImage: (name) =>
@@ -92,49 +98,32 @@ export const translations: Record<Lang, Translation> = {
     nsfwReactionRepost:
       "Sizning postingizga nojo'ya profilli foydalanuvchi reaksiya qoldirdi, shuning uchun postni qayta joyladik.",
 
-    commands: [
-      {
-        name: "hamma",
-        description: "Barcha kuzatilgan guruh a'zolarini eslatish",
-        usage: "/hamma",
-      },
-      {
-        name: "statistika",
-        description:
-          "Kuzatilgan va jami a'zolar sonini ko'rsatish",
-        usage: "/statistika",
-      },
-      {
-        name: "yordam",
-        description: "Mavjud buyruqlar ro'yxatini ko'rsatish",
-        usage: "/yordam",
-      },
-      {
-        name: "yangiliklar",
-        description: "Kundalik yangiliklar yoqish",
-        usage: "/yangiliklar",
-      },
-      {
-        name: "yangiliklar_bekor",
-        description: "Kundalik yangiliklar o'chirish",
-        usage: "/yangiliklar_bekor",
-      },
-      {
-        name: "uz",
-        description: "Tilni o'zbekchaga o'zgartirish",
-        usage: "/uz",
-      },
-      {
-        name: "ru",
-        description: "Tilni ruschaga o'zgartirish",
-        usage: "/ru",
-      },
-      {
-        name: "en",
-        description: "Tilni inglizchaga o'zgartirish",
-        usage: "/en",
-      },
-    ],
+    groupCommands: {
+      title: "Guruh buyruqlari:",
+      commands: [
+        { name: "hamma", description: "Barcha kuzatilgan guruh a'zolarini eslatish", usage: "/hamma" },
+        { name: "statistika", description: "Kuzatilgan va jami a'zolar sonini ko'rsatish", usage: "/statistika" },
+        { name: "yordam", description: "Mavjud buyruqlar ro'yxatini ko'rsatish", usage: "/yordam" },
+        { name: "yangiliklar", description: "Kundalik yangiliklar yoqish", usage: "/yangiliklar" },
+        { name: "yangiliklar_bekor", description: "Kundalik yangiliklar o'chirish", usage: "/yangiliklar_bekor" },
+        { name: "uz", description: "Tilni o'zbekchaga o'zgartirish", usage: "/uz" },
+        { name: "ru", description: "Tilni ruschaga o'zgartirish", usage: "/ru" },
+        { name: "en", description: "Tilni inglizchaga o'zgartirish", usage: "/en" },
+      ],
+    },
+    devGroupCommands: {
+      title: "Guruh buyruqlari (dasturchi):",
+      commands: [
+        { name: "testNews", description: "Yangiliklar hozir yuborish", usage: "/testNews" },
+      ],
+    },
+    devBotCommands: {
+      title: "Bot buyruqlari (dasturchi):",
+      commands: [
+        { name: "settings", description: "Bot sozlamalari", usage: "/settings" },
+        { name: "newsstats", description: "Yangiliklar statistikasi", usage: "/newsstats" },
+      ],
+    },
   },
 
   ru: {
@@ -166,7 +155,6 @@ export const translations: Record<Lang, Translation> = {
       `Готово. Новости отправлены в ${count} группу(ы).`,
 
     dailyNewsHeader: "📰 Ежедневные новости:\n\n",
-
     nsfwBannedProfile: (name) =>
       `Пользователь ${name} заблокирован: обнаружено NSFW фото профиля.`,
     nsfwBannedImage: (name) =>
@@ -176,48 +164,32 @@ export const translations: Record<Lang, Translation> = {
     nsfwReactionRepost:
       "На ваш пост отреагировал пользователь с непристойным профилем, поэтому мы переопубликовали пост.",
 
-    commands: [
-      {
-        name: "все",
-        description: "Упомянуть всех отслеживаемых участников",
-        usage: "/все",
-      },
-      {
-        name: "статистика",
-        description: "Показать количество отслеживаемых и всех участников",
-        usage: "/статистика",
-      },
-      {
-        name: "помощь",
-        description: "Показать список доступных команд",
-        usage: "/помощь",
-      },
-      {
-        name: "новости",
-        description: "Включить ежедневные новости",
-        usage: "/новости",
-      },
-      {
-        name: "отмена_новостей",
-        description: "Отключить ежедневные новости",
-        usage: "/отмена_новостей",
-      },
-      {
-        name: "uz",
-        description: "Сменить язык на узбекский",
-        usage: "/uz",
-      },
-      {
-        name: "ru",
-        description: "Сменить язык на русский",
-        usage: "/ru",
-      },
-      {
-        name: "en",
-        description: "Сменить язык на английский",
-        usage: "/en",
-      },
-    ],
+    groupCommands: {
+      title: "Команды группы:",
+      commands: [
+        { name: "все", description: "Упомянуть всех отслеживаемых участников", usage: "/все" },
+        { name: "статистика", description: "Показать количество отслеживаемых и всех участников", usage: "/статистика" },
+        { name: "помощь", description: "Показать список доступных команд", usage: "/помощь" },
+        { name: "новости", description: "Включить ежедневные новости", usage: "/новости" },
+        { name: "отмена_новостей", description: "Отключить ежедневные новости", usage: "/отмена_новостей" },
+        { name: "uz", description: "Сменить язык на узбекский", usage: "/uz" },
+        { name: "ru", description: "Сменить язык на русский", usage: "/ru" },
+        { name: "en", description: "Сменить язык на английский", usage: "/en" },
+      ],
+    },
+    devGroupCommands: {
+      title: "Команды группы (разработчик):",
+      commands: [
+        { name: "testNews", description: "Отправить новости сейчас", usage: "/testNews" },
+      ],
+    },
+    devBotCommands: {
+      title: "Команды бота (разработчик):",
+      commands: [
+        { name: "settings", description: "Настройки бота", usage: "/settings" },
+        { name: "newsstats", description: "Статистика новостей", usage: "/newsstats" },
+      ],
+    },
   },
 
   en: {
@@ -247,7 +219,6 @@ export const translations: Record<Lang, Translation> = {
     newsSent: (count) => `Done. News sent to ${count} group(s).`,
 
     dailyNewsHeader: "📰 Daily News:\n\n",
-
     nsfwBannedProfile: (name) =>
       `User ${name} was banned: NSFW profile photo detected.`,
     nsfwBannedImage: (name) =>
@@ -257,47 +228,31 @@ export const translations: Record<Lang, Translation> = {
     nsfwReactionRepost:
       "A user with a sensitive profile reacted to your post, so we reposted it.",
 
-    commands: [
-      {
-        name: "all",
-        description: "Mention all tracked group members",
-        usage: "/all",
-      },
-      {
-        name: "stats",
-        description: "Show tracked vs total member counts",
-        usage: "/stats",
-      },
-      {
-        name: "help",
-        description: "Show list of available commands",
-        usage: "/help",
-      },
-      {
-        name: "news",
-        description: "Enable daily news for this group",
-        usage: "/news",
-      },
-      {
-        name: "cancelNews",
-        description: "Disable daily news for this group",
-        usage: "/cancelNews",
-      },
-      {
-        name: "uz",
-        description: "Change language to Uzbek",
-        usage: "/uz",
-      },
-      {
-        name: "ru",
-        description: "Change language to Russian",
-        usage: "/ru",
-      },
-      {
-        name: "en",
-        description: "Change language to English",
-        usage: "/en",
-      },
-    ],
+    groupCommands: {
+      title: "Group commands:",
+      commands: [
+        { name: "all", description: "Mention all tracked group members", usage: "/all" },
+        { name: "stats", description: "Show tracked vs total member counts", usage: "/stats" },
+        { name: "help", description: "Show list of available commands", usage: "/help" },
+        { name: "news", description: "Enable daily news for this group", usage: "/news" },
+        { name: "cancelNews", description: "Disable daily news for this group", usage: "/cancelNews" },
+        { name: "uz", description: "Change language to Uzbek", usage: "/uz" },
+        { name: "ru", description: "Change language to Russian", usage: "/ru" },
+        { name: "en", description: "Change language to English", usage: "/en" },
+      ],
+    },
+    devGroupCommands: {
+      title: "Group commands (developer):",
+      commands: [
+        { name: "testNews", description: "Send news now", usage: "/testNews" },
+      ],
+    },
+    devBotCommands: {
+      title: "Bot commands (developer):",
+      commands: [
+        { name: "settings", description: "Bot settings", usage: "/settings" },
+        { name: "newsstats", description: "News click statistics", usage: "/newsstats" },
+      ],
+    },
   },
 };

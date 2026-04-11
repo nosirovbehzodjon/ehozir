@@ -1,7 +1,7 @@
 import { Bot } from "grammy";
-import { sendDailyNews } from "@/scheduler/dailyNews";
+import { sendNewsToChat } from "@/scheduler/dailyNews";
 import { getGroupLanguage } from "@/db/settings";
-import { onCommand, t } from "@/i18n";
+import { onCommand, t, type Lang } from "@/i18n";
 
 const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
   .split(",")
@@ -14,29 +14,31 @@ export function registerTestNews(bot: Bot) {
     bot,
     ["testNews", "test_yangiliklar", "тест_новости"],
     async (ctx) => {
+      const lang: Lang =
+        ctx.chat?.type === "group" || ctx.chat?.type === "supergroup"
+          ? ((await getGroupLanguage(ctx.chat.id)) as Lang)
+          : "uz";
+
       if (!ctx.from || !DEVELOPER_IDS.includes(ctx.from.id)) {
-        const lang =
-          ctx.chat?.type === "group" || ctx.chat?.type === "supergroup"
-            ? await getGroupLanguage(ctx.chat.id)
-            : "uz";
         await ctx.reply(t(lang).developerOnly, {
           reply_to_message_id: ctx.msg?.message_id,
         });
         return;
       }
 
-      const lang =
-        ctx.chat?.type === "group" || ctx.chat?.type === "supergroup"
-          ? await getGroupLanguage(ctx.chat.id)
-          : "uz";
-
       await ctx.reply(t(lang).sendingNews, {
         reply_to_message_id: ctx.msg?.message_id,
       });
 
-      const count = await sendDailyNews(bot);
-
-      await ctx.reply(t(lang).newsSent(count));
+      try {
+        const sent = await sendNewsToChat(bot, ctx.chat!.id, lang);
+        if (!sent) {
+          await ctx.reply("No news available right now.");
+        }
+      } catch (err) {
+        console.error("testNews error:", err);
+        await ctx.reply("Failed to fetch news.");
+      }
     },
   );
 }

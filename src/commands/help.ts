@@ -2,6 +2,12 @@ import { Bot } from "grammy";
 import { getGroupLanguage } from "@/db/settings";
 import { onCommand, t } from "@/i18n";
 
+const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
+  .split(",")
+  .map((id) => id.trim())
+  .filter(Boolean)
+  .map(Number);
+
 export function registerHelp(bot: Bot) {
   onCommand(bot, ["help", "yordam", "помощь"], async (ctx) => {
     const lang =
@@ -10,15 +16,20 @@ export function registerHelp(bot: Bot) {
         : "uz";
 
     const tr = t(lang);
+    const isDev = ctx.from ? DEVELOPER_IDS.includes(ctx.from.id) : false;
 
-    if (tr.commands.length === 0) {
-      await ctx.reply(tr.noCommands);
-      return;
-    }
+    const categories = [
+      tr.groupCommands,
+      ...(isDev ? [tr.devGroupCommands, tr.devBotCommands] : []),
+    ];
 
     let text = tr.availableCommands;
-    for (const cmd of tr.commands) {
-      text += `${cmd.usage} — ${cmd.description}\n`;
+    for (const category of categories) {
+      text += `${category.title}\n`;
+      for (const cmd of category.commands) {
+        text += `  ${cmd.usage} — ${cmd.description}\n`;
+      }
+      text += "\n";
     }
 
     await ctx.reply(text, { reply_to_message_id: ctx.msg?.message_id });

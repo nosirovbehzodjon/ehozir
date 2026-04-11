@@ -1,5 +1,5 @@
 import { Bot, InlineKeyboard } from "grammy";
-import { getNewsHour, setNewsHour } from "@/db/botSettings";
+import { getNewsHours, setNewsHours } from "@/db/botSettings";
 
 const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
   .split(",")
@@ -11,37 +11,42 @@ function isDeveloper(userId: number): boolean {
   return DEVELOPER_IDS.includes(userId);
 }
 
-function buildTimeKeyboard(currentHour: number): InlineKeyboard {
+function buildTimeKeyboard(activeHours: number[]): InlineKeyboard {
   const keyboard = new InlineKeyboard();
   // 06:00 to 21:00, 4 buttons per row
   for (let h = 6; h <= 21; h++) {
-    const label =
-      h === currentHour
-        ? `✅ ${String(h).padStart(2, "0")}:00`
-        : `${String(h).padStart(2, "0")}:00`;
-    keyboard.text(label, `news_hour:${h}`);
+    const isActive = activeHours.includes(h);
+    const label = isActive
+      ? `✅ ${String(h).padStart(2, "0")}:00`
+      : `${String(h).padStart(2, "0")}:00`;
+    keyboard.text(label, `news_hours_toggle:${h}`);
     if ((h - 5) % 4 === 0) keyboard.row();
   }
   return keyboard;
 }
 
+function formatActiveHours(hours: number[]): string {
+  return [...hours]
+    .sort((a, b) => a - b)
+    .map((h) => `${String(h).padStart(2, "0")}:00`)
+    .join(", ");
+}
+
 export function registerSettings(bot: Bot) {
   bot.command("settings", async (ctx) => {
-    if (!ctx.from || !isDeveloper(ctx.from.id)) {
-      await ctx.reply("This command is for developers only.");
-      return;
-    }
+    if (ctx.chat.type === "group" || ctx.chat.type === "supergroup") return;
+    if (!ctx.from || !isDeveloper(ctx.from.id)) return;
 
-    const currentHour = await getNewsHour();
-    const keyboard = buildTimeKeyboard(currentHour);
+    const currentHours = await getNewsHours();
+    const keyboard = buildTimeKeyboard(currentHours);
 
     await ctx.reply(
-      `⚙️ Bot Settings\n\n📰 Daily news time: ${String(currentHour).padStart(2, "0")}:00 (Tashkent)\n\nSelect new time:`,
+      `⚙️ Bot Settings\n\n📰 Daily news times: ${formatActiveHours(currentHours)} (Tashkent)\n\nTap to toggle hours on/off:`,
       { reply_markup: keyboard },
     );
   });
 
-  bot.callbackQuery(/^news_hour:(\d+)$/, async (ctx) => {
+  bot.callbackQuery(/^news_hours_toggle:(\d+)$/, async (ctx) => {
     if (!ctx.from || !isDeveloper(ctx.from.id)) {
       await ctx.answerCallbackQuery({ text: "Developers only." });
       return;
@@ -55,17 +60,33 @@ export function registerSettings(bot: Bot) {
       return;
     }
 
-    await setNewsHour(hour);
+    const currentHours = await getNewsHours();
+    let updatedHours: number[];
 
-    const keyboard = buildTimeKeyboard(hour);
+    if (currentHours.includes(hour)) {
+      // Don't allow removing the last hour
+      if (currentHours.length <= 1) {
+        await ctx.answerCallbackQuery({
+          text: "At least one hour must be active.",
+        });
+        return;
+      }
+      updatedHours = currentHours.filter((h) => h !== hour);
+    } else {
+      updatedHours = [...currentHours, hour];
+    }
+
+    await setNewsHours(updatedHours);
+
+    const keyboard = buildTimeKeyboard(updatedHours);
 
     await ctx.editMessageText(
-      `⚙️ Bot Settings\n\n📰 Daily news time: ${String(hour).padStart(2, "0")}:00 (Tashkent) ✅\n\nSelect new time:`,
+      `⚙️ Bot Settings\n\n📰 Daily news times: ${formatActiveHours(updatedHours)} (Tashkent)\n\nTap to toggle hours on/off:`,
       { reply_markup: keyboard },
     );
 
     await ctx.answerCallbackQuery({
-      text: `News time set to ${String(hour).padStart(2, "0")}:00`,
+      text: `News times: ${formatActiveHours(updatedHours)}`,
     });
   });
 }
