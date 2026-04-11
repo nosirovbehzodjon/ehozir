@@ -5,6 +5,9 @@ import { registerStats } from "@/commands/stats";
 import { registerHelp } from "@/commands/help";
 import { registerNews } from "@/commands/news";
 import { registerTestNews } from "@/commands/testNews";
+import { registerLanguage } from "@/commands/language";
+import { registerNsfwMiddleware } from "@/middleware/nsfw";
+import { loadModel } from "@/services/nsfw";
 import { startDailyNewsScheduler } from "@/scheduler/dailyNews";
 import { initNotifier, notifyDevelopers } from "@/utils/notify";
 
@@ -19,8 +22,10 @@ initNotifier(bot);
 
 // Middleware
 registerTracker(bot);
+registerNsfwMiddleware(bot);
 
 // Commands
+registerLanguage(bot);
 registerHamma(bot);
 registerStats(bot);
 registerHelp(bot);
@@ -63,15 +68,24 @@ process.on("unhandledRejection", async (reason) => {
   await notifyDevelopers(message);
 });
 
-bot.start({
-  allowed_updates: [
-    "message",
-    "edited_message",
-    "chat_member",
-    "my_chat_member",
-  ],
-  onStart: () =>
-    console.log(
-      "Bot started. Use /hamma or /all in groups to mention all members.",
-    ),
-});
+// Pre-load NSFW model, then start the bot
+loadModel()
+  .then(() => {
+    bot.start({
+      allowed_updates: [
+        "message",
+        "edited_message",
+        "chat_member",
+        "my_chat_member",
+        "message_reaction",
+      ],
+      onStart: () =>
+        console.log(
+          "Bot started. Use /hamma or /all in groups to mention all members.",
+        ),
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to load NSFW model:", err);
+    process.exit(1);
+  });

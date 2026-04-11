@@ -1,4 +1,5 @@
 import { supabase } from "@/db/client";
+import { type Lang, DEFAULT_LANG } from "@/i18n/translations";
 
 export async function getGroupSetting(
   chatId: number,
@@ -35,5 +36,45 @@ export async function setGroupSetting(
 
   if (error) {
     console.error("group_settings upsert error:", error.message);
+  }
+}
+
+export async function isFeatureEnabled(
+  chatId: number,
+  feature: string,
+  defaultValue = true,
+): Promise<boolean> {
+  const setting = await getGroupSetting(chatId, feature);
+  if (setting === null) return defaultValue;
+  return setting;
+}
+
+export async function getGroupLanguage(chatId: number): Promise<Lang> {
+  const { data, error } = await supabase
+    .from("groups")
+    .select("language")
+    .eq("chat_id", chatId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("groups language select error:", error.message);
+    return DEFAULT_LANG;
+  }
+  const lang = data?.language;
+  if (lang === "uz" || lang === "ru" || lang === "en") return lang;
+  return DEFAULT_LANG;
+}
+
+export async function setGroupLanguage(
+  chatId: number,
+  language: Lang,
+): Promise<void> {
+  const { error } = await supabase
+    .from("groups")
+    .update({ language, updated_at: new Date().toISOString() })
+    .eq("chat_id", chatId);
+
+  if (error) {
+    console.error("groups language update error:", error.message);
   }
 }

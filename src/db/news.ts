@@ -75,10 +75,15 @@ export async function getNewsClickStats(): Promise<NewsStats[]> {
   }));
 }
 
-export async function getGroupsWithNewsEnabled(): Promise<number[]> {
+export type NewsGroup = {
+  chatId: number;
+  language: string;
+};
+
+export async function getGroupsWithNewsEnabled(): Promise<NewsGroup[]> {
   const { data, error } = await supabase
     .from("group_settings")
-    .select("chat_id")
+    .select("chat_id, groups!inner(language)")
     .eq("feature", "dailyNews")
     .eq("enabled", true);
 
@@ -86,5 +91,8 @@ export async function getGroupsWithNewsEnabled(): Promise<number[]> {
     console.error("group_settings news select error:", error.message);
     return [];
   }
-  return (data ?? []).map((row) => row.chat_id);
+  return (data ?? []).map((row: any) => ({
+    chatId: row.chat_id,
+    language: row.groups?.language ?? "uz",
+  }));
 }

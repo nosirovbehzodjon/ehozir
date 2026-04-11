@@ -18,9 +18,12 @@
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
+    "@tensorflow/tfjs": "^4.22.0",
     "cz-conventional-changelog": "^3.3.0",
     "grammy": "^1.30.0",
-    "node-cron": "^4.2.1"
+    "jpeg-js": "^0.4.4",
+    "node-cron": "^4.2.1",
+    "nsfwjs": "^4.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",

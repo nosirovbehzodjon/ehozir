@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { Bot } from "grammy";
 import { getLatestNews, getGroupsWithNewsEnabled } from "@/db/news";
+import { t, type Lang } from "@/i18n";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
 
@@ -9,31 +10,32 @@ function buildTrackingUrl(newsId: number, chatId: number): string {
 }
 
 export async function sendDailyNews(bot: Bot): Promise<number> {
-  const [news, chatIds] = await Promise.all([
+  const [news, groups] = await Promise.all([
     getLatestNews(5),
     getGroupsWithNewsEnabled(),
   ]);
 
-  if (news.length === 0 || chatIds.length === 0) return 0;
+  if (news.length === 0 || groups.length === 0) return 0;
 
-  for (const chatId of chatIds) {
-    let text = "📰 Daily News:\n\n";
+  for (const group of groups) {
+    const lang = (group.language as Lang) || "uz";
+    let text = t(lang).dailyNewsHeader;
     for (const item of news) {
-      const url = buildTrackingUrl(item.id, chatId);
+      const url = buildTrackingUrl(item.id, group.chatId);
       text += `• <a href="${url}">${escapeHtml(item.title)}</a>\n\n`;
     }
 
     try {
-      await bot.api.sendMessage(chatId, text, {
+      await bot.api.sendMessage(group.chatId, text, {
         parse_mode: "HTML",
         link_preview_options: { is_disabled: true },
       });
     } catch (err) {
-      console.error(`Failed to send news to ${chatId}:`, err);
+      console.error(`Failed to send news to ${group.chatId}:`, err);
     }
   }
 
-  return chatIds.length;
+  return groups.length;
 }
 
 function escapeHtml(text: string): string {
