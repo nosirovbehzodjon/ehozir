@@ -23,7 +23,7 @@ const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
   .map(Number);
 
 const FALLBACK_AVATARS = [
-  "https://api.dicebear.com/9.x/adventurer-neutral/png?flip=false&size=240&seed=Felix",
+  "https://api.dicebear.com/9.x/adventurer-neutral/png?flip=false&size=240&seed=Aneka",
   "https://api.dicebear.com/9.x/adventurer-neutral/png?seed=Felix&size=240",
 ];
 
