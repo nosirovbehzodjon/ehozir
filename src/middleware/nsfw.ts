@@ -34,22 +34,58 @@ function formatPredictions(result: NsfwResult, label: string): string {
   return `📊 ${label}:\n${lines.join("\n")}`;
 }
 
+function buildPhotoLink(
+  chat: { id: number; type: string; username?: string | null },
+  messageId?: number,
+): string | null {
+  if (!messageId) return null;
+  // Public group/channel with a username → direct t.me/<username>/<msg>
+  if (chat.username) {
+    return `https://t.me/${chat.username}/${messageId}`;
+  }
+  // Private supergroup: chat.id is -100XXXXXXXXXX → https://t.me/c/XXXXXXXXXX/<msg>
+  if (chat.type === "supergroup" || chat.type === "channel") {
+    const internal = String(chat.id).replace(/^-100/, "");
+    return `https://t.me/c/${internal}/${messageId}`;
+  }
+  return null;
+}
+
+/**
+ * Send the NSFW classification breakdown directly to every developer's DM
+ * (never into the group). Includes a link back to the original photo so
+ * the developer can review it in context.
+ */
 async function sendDevBreakdown(
   bot: Bot,
-  chatId: number,
-  userId: number,
+  chat: {
+    id: number;
+    type: string;
+    title?: string | null;
+    username?: string | null;
+  },
   result: NsfwResult,
   label: string,
   messageId?: number,
 ): Promise<void> {
-  if (!isDeveloper(userId)) return;
-  const text = formatPredictions(result, label);
-  try {
-    await bot.api.sendMessage(chatId, text, {
-      reply_parameters: messageId ? { message_id: messageId } : undefined,
-    });
-  } catch {
-    // ignore
+  if (DEVELOPER_IDS.length === 0) return;
+
+  const groupLabel = chat.title ? ` · ${chat.title}` : "";
+  const breakdown = formatPredictions(result, label);
+  const link = buildPhotoLink(chat, messageId);
+
+  const text = link
+    ? `${breakdown}${groupLabel}\n\n🔗 ${link}`
+    : `${breakdown}${groupLabel}`;
+
+  for (const devId of DEVELOPER_IDS) {
+    try {
+      await bot.api.sendMessage(devId, text, {
+        link_preview_options: { is_disabled: true },
+      });
+    } catch {
+      // ignore individual DM failures
+    }
   }
 }
 
@@ -426,7 +462,18 @@ export function registerNsfwMiddleware(bot: Bot) {
 
       const buffer = await downloadTelegramFile(file.file_path);
       const result = await classifyImage(buffer);
-      await sendDevBreakdown(bot, chat.id, user.id, result, "Message photo", ctx.msg?.message_id);
+      await sendDevBreakdown(
+        bot,
+        {
+          id: chat.id,
+          type: chat.type,
+          title: "title" in chat ? chat.title : null,
+          username: "username" in chat ? chat.username : null,
+        },
+        result,
+        "Message photo",
+        ctx.msg?.message_id,
+      );
 
       if (result.isNsfw) {
         await banAndNotify(

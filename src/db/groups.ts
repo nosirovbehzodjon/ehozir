@@ -94,6 +94,38 @@ export async function setTelegramMemberCount(
   }
 }
 
+export async function listAllGroups(): Promise<
+  { chat_id: number; title: string | null }[]
+> {
+  const { data, error } = await supabase
+    .from("groups")
+    .select("chat_id, title");
+  if (error) {
+    console.error("groups list error:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+export async function getGroupMember(
+  chatId: number,
+  userId: number,
+): Promise<GroupMemberRow | null> {
+  const { data, error } = await supabase
+    .from("group_members")
+    .select(
+      "chat_id,user_id,username,first_name,last_name,is_bot,language_code",
+    )
+    .eq("chat_id", chatId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) {
+    console.error("group_members single select error:", error.message);
+    return null;
+  }
+  return data;
+}
+
 export async function getGroupStats(chatId: number): Promise<GroupStats> {
   const { data, error } = await supabase
     .from("groups")

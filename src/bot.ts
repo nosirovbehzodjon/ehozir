@@ -7,9 +7,15 @@ import { registerNews } from "@/commands/news";
 import { registerTestNews } from "@/commands/testNews";
 import { registerSettings } from "@/commands/settings";
 import { registerNewsStats } from "@/commands/newsStats";
+import { registerTestStatsCard } from "@/commands/testStatsCard";
+import { registerWeeklyStats } from "@/commands/weeklyStats";
+import { registerGreeting } from "@/commands/greeting";
+import { startWeeklyStatsScheduler } from "@/scheduler/weeklyStats";
 import { registerLanguage } from "@/commands/language";
 import { registerNsfwMiddleware } from "@/middleware/nsfw";
+import { registerStatsLogger } from "@/middleware/statsLogger";
 import { loadModel } from "@/services/nsfw";
+import { warmupCardRenderer } from "@/services/statsCard";
 import { startDailyNewsScheduler } from "@/scheduler/dailyNews";
 import { initNotifier, notifyDevelopers } from "@/utils/notify";
 
@@ -22,8 +28,15 @@ if (!token) {
 const bot = new Bot(token);
 initNotifier(bot);
 
+// Raw update logger — prints every update key Telegram sends.
+bot.use(async (ctx, next) => {
+  console.log("[update]", Object.keys(ctx.update).filter((k) => k !== "update_id"));
+  await next();
+});
+
 // Middleware
 registerTracker(bot);
+registerStatsLogger(bot);
 registerNsfwMiddleware(bot);
 
 // Commands
@@ -35,9 +48,13 @@ registerNews(bot);
 registerTestNews(bot);
 registerSettings(bot);
 registerNewsStats(bot);
+registerTestStatsCard(bot);
+registerWeeklyStats(bot);
+registerGreeting(bot);
 
 // Schedulers
 startDailyNewsScheduler(bot);
+startWeeklyStatsScheduler(bot);
 
 // Error handler
 bot.catch(async (err) => {
@@ -72,8 +89,8 @@ process.on("unhandledRejection", async (reason) => {
   await notifyDevelopers(message);
 });
 
-// Pre-load NSFW model, then start the bot
-loadModel()
+// Pre-load NSFW model + stats card renderer, then start the bot
+Promise.all([loadModel(), warmupCardRenderer()])
   .then(() => {
     bot.start({
       allowed_updates: [
@@ -82,6 +99,7 @@ loadModel()
         "chat_member",
         "my_chat_member",
         "message_reaction",
+        "message_reaction_count",
         "callback_query",
       ],
       onStart: () =>

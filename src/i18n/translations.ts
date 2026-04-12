@@ -56,6 +56,33 @@ type Translation = {
   groupCommands: CommandCategory;
   devGroupCommands: CommandCategory;
   devBotCommands: CommandCategory;
+
+  // Stats card labels
+  statsCard: {
+    weeklyChampion: string;
+    weeklyLeaderboard: string;
+    rank: string;
+    totalActions: string;
+    messages: string;
+    replies: string;
+    reactionsGiven: string;
+    reactionsReceived: string;
+    stickers: string;
+    voices: string;
+    media: string;
+    topMessager: string;
+    topReplier: string;
+    topReactionGiver: string;
+    topReactionReceiver: string;
+    topStickerSender: string;
+    topVoiceSender: string;
+    topMediaSender: string;
+    weeklyCaption: (botUsername: string) => string;
+  };
+
+  // Greeting when bot is added to a group
+  greeting: string;
+  capabilitiesFull: string;
 };
 
 export const translations: Record<Lang, Translation> = {
@@ -109,6 +136,7 @@ export const translations: Record<Lang, Translation> = {
         { name: "uz", description: "Tilni o'zbekchaga o'zgartirish", usage: "/uz" },
         { name: "ru", description: "Tilni ruschaga o'zgartirish", usage: "/ru" },
         { name: "en", description: "Tilni inglizchaga o'zgartirish", usage: "/en" },
+        { name: "imkoniyatlarim", description: "Botning barcha imkoniyatlarini ko'rsatish", usage: "/imkoniyatlarim" },
       ],
     },
     devGroupCommands: {
@@ -124,6 +152,34 @@ export const translations: Record<Lang, Translation> = {
         { name: "newsstats", description: "Yangiliklar statistikasi", usage: "/newsstats" },
       ],
     },
+
+    statsCard: {
+      weeklyChampion: "Haftalik chempion",
+      weeklyLeaderboard: "Haftalik reyting",
+      rank: "O'rin",
+      totalActions: "Jami harakatlar",
+      messages: "Xabarlar",
+      replies: "Javoblar",
+      reactionsGiven: "Qo'yilgan reaksiyalar",
+      reactionsReceived: "Olingan reaksiyalar",
+      stickers: "Stikerlar",
+      voices: "Ovozli xabarlar",
+      media: "Media",
+      topMessager: "Suhbat ustasi",
+      topReplier: "Eng yaxshi suhbatdosh",
+      topReactionGiver: "Qalbi keng a'zo",
+      topReactionReceiver: "Guruh yulduzi",
+      topStickerSender: "Stiker ustasi",
+      topVoiceSender: "Ovoz ustasi",
+      topMediaSender: "Media ustasi",
+      weeklyCaption: (bot) =>
+        `🏆 Haftalik statistika — bir haftalik faolligimiz qisqacha!\n\nEng faol a'zolarimizni tabriklaymiz! Yangi hafta — yangi imkoniyatlar. Siz ham kuzatishda qoling 🔥\n\n🤖 Botni o'z guruhingizga qo'shing: @${bot}\nHar bir guruh uchun qiziqarli statistikalar va yangiliklar!\n\n⚠️ Eng ko'p reaksiya qo'ygan va olgan a'zolarni aniqlash uchun botga admin huquqlari kerak. Iltimos, botni adminga qo'shing.`,
+    },
+
+    greeting:
+      "Assalomu alaykum, aziz do'stlar! 👋\n\nMen guruhingizga qo'shilganimdan xursandman. Men — ko'p vazifali botman: har kuni qiziqarli yangiliklarni yetkazib beraman, nomaqbul kontentni avtomatik aniqlayman, va eng muhimi — guruh a'zolarining haftalik, oylik va yillik faolliklarini kuzatib, eng faol a'zolarni aniqlayman 🏆\n\nTo'liq imkoniyatlarim haqida ma'lumot olish uchun /imkoniyatlarim buyrug'ini bosing.",
+    capabilitiesFull:
+      "🤖 <b>Mening imkoniyatlarim</b>\n\n<b>📊 Faollik statistikasi</b>\n• Haftalik, oylik va yillik faollikni avtomatik kuzataman\n• Xabarlar, javoblar, stikerlar, ovozli xabarlar va mediani hisoblayman\n• Har hafta eng faol a'zolar kartasini yarataman\n• Eng ko'p yozgan, javob bergan, stiker yuborgan va media yuborganlarni aniqlayman\n\n<b>📰 Kundalik yangiliklar</b>\n• daryo.uz saytidan eng so'nggi yangiliklarni olib, kuniga bir necha marta guruhga yuboraman\n• /yangiliklar — yangiliklarni yoqish\n• /yangiliklar_bekor — o'chirish\n\n<b>🛡 Umumiy himoya</b>\n• Profil rasmlari, kanal rasmlari va xabardagi rasmlarni avtomatik tekshiraman\n• Nomaqbul kontent aniqlansa, foydalanuvchini avtomatik bloklayman\n• Bir guruhda aniqlangan foydalanuvchi boshqa guruhlarda ham bloklanadi\n\n<b>👥 A'zolar bilan ishlash</b>\n• /hamma — barcha a'zolarni eslatish\n• /statistika — guruh a'zolari soni\n\n<b>🌐 Ko'p tillilik</b>\n• O'zbek, rus va ingliz tillarini qo'llab-quvvatlayman\n• /uz /ru /en orqali tilni o'zgartirish mumkin\n\n<b>⭐ Adminlik berilsa nimalar qilaman?</b>\n• <b>Reaksiyalarni kuzataman</b> — eng ko'p reaksiya qo'ygan va eng ko'p reaksiya olgan a'zolarni aniqlayman (bularsiz reaksiya statistikasi ishlamaydi!)\n• <b>Nomaqbul foydalanuvchilarni avtomatik bloklayman</b> — adminliksiz bloklash imkonsiz\n• <b>Barcha a'zolarni kuzataman</b> — yangi qo'shilganlarni avtomatik qayd qilaman\n• <b>Nomaqbul rasmlarni o'chiraman</b> — guruhni toza tutaman\n\n💡 To'liq imkoniyatlardan foydalanish uchun botni adminga qo'shing!",
   },
 
   ru: {
@@ -175,6 +231,7 @@ export const translations: Record<Lang, Translation> = {
         { name: "uz", description: "Сменить язык на узбекский", usage: "/uz" },
         { name: "ru", description: "Сменить язык на русский", usage: "/ru" },
         { name: "en", description: "Сменить язык на английский", usage: "/en" },
+        { name: "возможности", description: "Показать все возможности бота", usage: "/возможности" },
       ],
     },
     devGroupCommands: {
@@ -190,6 +247,34 @@ export const translations: Record<Lang, Translation> = {
         { name: "newsstats", description: "Статистика новостей", usage: "/newsstats" },
       ],
     },
+
+    statsCard: {
+      weeklyChampion: "Чемпион недели",
+      weeklyLeaderboard: "Рейтинг недели",
+      rank: "Место",
+      totalActions: "Всего действий",
+      messages: "Сообщения",
+      replies: "Ответы",
+      reactionsGiven: "Отправлено реакций",
+      reactionsReceived: "Получено реакций",
+      stickers: "Стикеры",
+      voices: "Голосовые",
+      media: "Медиа",
+      topMessager: "Топ автор",
+      topReplier: "Топ ответчик",
+      topReactionGiver: "Топ реактор",
+      topReactionReceiver: "Самый популярный",
+      topStickerSender: "Топ стикеров",
+      topVoiceSender: "Топ голосовых",
+      topMediaSender: "Топ медиа",
+      weeklyCaption: (bot) =>
+        `🏆 Статистика недели — краткая сводка нашей активности!\n\nПоздравляем самых активных участников! Новая неделя — новые возможности. Следите за рейтингом 🔥\n\n🤖 Добавьте бота в свою группу: @${bot}\nИнтересная статистика и новости для каждой группы!\n\n⚠️ Чтобы определять участников, которые ставят и получают больше всех реакций, боту нужны права администратора. Пожалуйста, дайте боту админку.`,
+    },
+
+    greeting:
+      "Привет, друзья! 👋\n\nРад присоединиться к вашей группе. Я — многофункциональный бот: доставляю свежие новости каждый день, автоматически определяю неприемлемый контент, и самое главное — отслеживаю недельную, месячную и годовую активность участников, чтобы определять самых активных 🏆\n\nЧтобы узнать обо всех моих возможностях, нажмите /capabilities.",
+    capabilitiesFull:
+      "🤖 <b>Мои возможности</b>\n\n<b>📊 Статистика активности</b>\n• Автоматически отслеживаю недельную, месячную и годовую активность\n• Считаю сообщения, ответы, стикеры, голосовые и медиа\n• Каждую неделю создаю карточку самых активных участников\n• Определяю топ авторов, ответчиков, отправителей стикеров и медиа\n\n<b>📰 Ежедневные новости</b>\n• Беру последние новости с daryo.uz и отправляю в группу несколько раз в день\n• /новости — включить\n• /отмена_новостей — выключить\n\n<b>🛡 Общая защита</b>\n• Автоматически проверяю фото профиля, фото каналов и фото в сообщениях\n• При обнаружении неприемлемого контента — автоматический бан\n• Пользователь, заблокированный в одной группе, блокируется во всех\n\n<b>👥 Работа с участниками</b>\n• /все — упомянуть всех\n• /статистика — количество участников\n\n<b>🌐 Мультиязычность</b>\n• Поддерживаю узбекский, русский и английский\n• Смена языка: /uz /ru /en\n\n<b>⭐ Что я могу с правами администратора?</b>\n• <b>Отслеживаю реакции</b> — определяю тех, кто ставит и получает больше всех реакций (без этого статистика реакций не работает!)\n• <b>Автоматически баню неприемлемых пользователей</b> — без админки бан невозможен\n• <b>Отслеживаю всех участников</b> — автоматически регистрирую новоприбывших\n• <b>Удаляю неприемлемые фото</b> — держу группу чистой\n\n💡 Дайте боту права администратора, чтобы использовать все возможности!",
   },
 
   en: {
@@ -239,6 +324,7 @@ export const translations: Record<Lang, Translation> = {
         { name: "uz", description: "Change language to Uzbek", usage: "/uz" },
         { name: "ru", description: "Change language to Russian", usage: "/ru" },
         { name: "en", description: "Change language to English", usage: "/en" },
+        { name: "capabilities", description: "Show all bot capabilities", usage: "/capabilities" },
       ],
     },
     devGroupCommands: {
@@ -254,5 +340,33 @@ export const translations: Record<Lang, Translation> = {
         { name: "newsstats", description: "News click statistics", usage: "/newsstats" },
       ],
     },
+
+    statsCard: {
+      weeklyChampion: "Weekly Champion",
+      weeklyLeaderboard: "Weekly Leaderboard",
+      rank: "Rank",
+      totalActions: "Total Actions",
+      messages: "Messages",
+      replies: "Replies",
+      reactionsGiven: "Reactions Given",
+      reactionsReceived: "Reactions Received",
+      stickers: "Stickers",
+      voices: "Voices",
+      media: "Media",
+      topMessager: "Top Messager",
+      topReplier: "Top Replier",
+      topReactionGiver: "Top Reaction Giver",
+      topReactionReceiver: "Top Reaction Receiver",
+      topStickerSender: "Top Sticker Sender",
+      topVoiceSender: "Top Voice Sender",
+      topMediaSender: "Top Media Sender",
+      weeklyCaption: (bot) =>
+        `🏆 Weekly stats — a quick look at how active we were!\n\nCongrats to our most active members! New week, new chances — stay in the race 🔥\n\n🤖 Add the bot to your own group: @${bot}\nFun stats and news for every community!\n\n⚠️ To track who gives and receives the most reactions, the bot needs admin rights. Please grant admin so it can count reactions.`,
+    },
+
+    greeting:
+      "Hi everyone! 👋\n\nHappy to join your group. I'm a multi-purpose bot: I deliver fresh news every day, automatically detect inappropriate content, and most importantly — I track weekly, monthly and yearly member activity to highlight your most active members 🏆\n\nTap /capabilities to see everything I can do.",
+    capabilitiesFull:
+      "🤖 <b>What I can do</b>\n\n<b>📊 Activity stats</b>\n• Automatically track weekly, monthly and yearly activity\n• Count messages, replies, stickers, voice messages and media\n• Generate a top-members card every week\n• Identify top messagers, repliers, sticker senders and media senders\n\n<b>📰 Daily news</b>\n• Fetch the latest news from daryo.uz and deliver it to the group several times a day\n• /news — enable\n• /cancelNews — disable\n\n<b>🛡 Content protection</b>\n• Automatically scan profile photos, channel photos and in-message photos\n• Auto-ban users posting inappropriate content\n• A user flagged in one group is banned in every group\n\n<b>👥 Member tools</b>\n• /all — mention every tracked member\n• /stats — group member counts\n\n<b>🌐 Multi-language</b>\n• Full Uzbek, Russian and English support\n• Change language with /uz /ru /en\n\n<b>⭐ What can I do with admin rights?</b>\n• <b>Track reactions</b> — identify who gives and receives the most reactions (reaction stats do not work without this!)\n• <b>Auto-ban flagged users</b> — banning is impossible without admin\n• <b>Track every member</b> — automatically register new joiners\n• <b>Delete inappropriate photos</b> — keep the group clean\n\n💡 Grant admin rights to unlock everything!",
   },
 };
