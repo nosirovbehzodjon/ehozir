@@ -135,6 +135,7 @@ export type StatsCardData = {
   avatarUrl: string;
   rank: number;
   weekLabel: string;
+  botUsername?: string;
   stats: {
     messages: number;
     replies: number;
@@ -181,8 +182,10 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
       [[t.media, fmt(s.media)]],
     ];
 
+    const botHandle = (data.botUsername ?? "").replace(/^@/, "");
+
     const markup = html(`
-      <div style="display:flex;width:900px;height:1360px;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);padding:55px;flex-direction:column;font-family:Montserrat;color:white;">
+      <div style="display:flex;width:900px;height:1440px;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);padding:55px;flex-direction:column;font-family:Montserrat;color:white;">
         <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:26px;">
           <div style="display:flex;font-size:22px;letter-spacing:6px;color:#a0a0c0;text-transform:uppercase;margin-bottom:6px;">${escapeHtml(t.weeklyChampion)}</div>
           <div style="display:flex;font-size:30px;font-weight:900;color:white;margin-bottom:4px;">${escapeHtml(data.groupTitle)}</div>
@@ -211,12 +214,14 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
           <div style="display:flex;font-size:22px;color:#a0a0c0;text-transform:uppercase;letter-spacing:3px;margin-right:18px;">${escapeHtml(t.totalActions)}</div>
           <div style="display:flex;font-size:44px;font-weight:900;color:#a3e635;">${fmt(total)}</div>
         </div>
+
+        ${cardFooter(botHandle, t.cardTagline)}
       </div>
     `);
 
     const svg = await satori(markup as any, {
       width: 900,
-      height: 1360,
+      height: 1440,
       fonts: [
         { name: "Montserrat", data: fonts.regular, weight: 400, style: "normal" },
         { name: "Montserrat", data: fonts.bold, weight: 700, style: "normal" },
@@ -229,6 +234,13 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
       .asPng();
     return Buffer.from(png);
   });
+}
+
+function cardFooter(botHandle: string, tagline: string): string {
+  return `<div style="display:flex;flex-direction:column;align-items:center;margin-top:auto;padding-top:24px;">
+    ${botHandle ? `<div style="display:flex;font-size:26px;font-weight:900;color:#a3e635;letter-spacing:2px;">@${escapeHtml(botHandle)}</div>` : ""}
+    <div style="display:flex;font-size:18px;color:#a0a0c0;margin-top:6px;letter-spacing:1px;">${escapeHtml(tagline)}</div>
+  </div>`;
 }
 
 function statBox(label: string, value: string, wide: boolean): string {
@@ -265,6 +277,7 @@ export type LeaderboardCardData = {
   groupTitle: string;
   weekLabel: string;
   winners: LeaderboardWinner[];
+  botUsername?: string;
 };
 
 export async function renderLeaderboardCard(
@@ -285,7 +298,8 @@ export async function renderLeaderboardCard(
       .map((w, i) => winnerRow(t[w.category], w.fullName, w.count, avatars[i]))
       .join("");
 
-    const height = 280 + data.winners.length * 120 + 80;
+    const height = 280 + data.winners.length * 120 + 80 + 90;
+    const botHandle = (data.botUsername ?? "").replace(/^@/, "");
 
     const markup = html(`
       <div style="display:flex;width:900px;height:${height}px;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);padding:55px;flex-direction:column;font-family:Montserrat;color:white;">
@@ -297,6 +311,7 @@ export async function renderLeaderboardCard(
         <div style="display:flex;flex-direction:column;gap:14px;">
           ${rowsHtml}
         </div>
+        ${cardFooter(botHandle, t.cardTagline)}
       </div>
     `);
 

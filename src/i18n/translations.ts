@@ -78,6 +78,7 @@ type Translation = {
     topVoiceSender: string;
     topMediaSender: string;
     weeklyCaption: (botUsername: string) => string;
+    cardTagline: string;
   };
 
   // Greeting when bot is added to a group
@@ -174,6 +175,7 @@ export const translations: Record<Lang, Translation> = {
       topMediaSender: "Media ustasi",
       weeklyCaption: (bot) =>
         `🏆 Haftalik statistika — bir haftalik faolligimiz qisqacha!\n\nEng faol a'zolarimizni tabriklaymiz! Yangi hafta — yangi imkoniyatlar. Siz ham kuzatishda qoling 🔥\n\n🤖 Botni o'z guruhingizga qo'shing: @${bot}\nHar bir guruh uchun qiziqarli statistikalar va yangiliklar!\n\n⚠️ Eng ko'p reaksiya qo'ygan va olgan a'zolarni aniqlash uchun botga admin huquqlari kerak. Iltimos, botni adminga qo'shing.`,
+      cardTagline: "Guruhingiz uchun aqlli yordamchi",
     },
 
     greeting:
@@ -269,6 +271,7 @@ export const translations: Record<Lang, Translation> = {
       topMediaSender: "Топ медиа",
       weeklyCaption: (bot) =>
         `🏆 Статистика недели — краткая сводка нашей активности!\n\nПоздравляем самых активных участников! Новая неделя — новые возможности. Следите за рейтингом 🔥\n\n🤖 Добавьте бота в свою группу: @${bot}\nИнтересная статистика и новости для каждой группы!\n\n⚠️ Чтобы определять участников, которые ставят и получают больше всех реакций, боту нужны права администратора. Пожалуйста, дайте боту админку.`,
+      cardTagline: "Умный помощник для вашей группы",
     },
 
     greeting:
@@ -362,6 +365,7 @@ export const translations: Record<Lang, Translation> = {
       topMediaSender: "Top Media Sender",
       weeklyCaption: (bot) =>
         `🏆 Weekly stats — a quick look at how active we were!\n\nCongrats to our most active members! New week, new chances — stay in the race 🔥\n\n🤖 Add the bot to your own group: @${bot}\nFun stats and news for every community!\n\n⚠️ To track who gives and receives the most reactions, the bot needs admin rights. Please grant admin so it can count reactions.`,
+      cardTagline: "The smart sidekick for your group",
     },
 
     greeting:

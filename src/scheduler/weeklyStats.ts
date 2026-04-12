@@ -117,6 +117,7 @@ async function processGroup(
       groupTitle,
       weekLabel: label,
       winners: resolvedWinners,
+      botUsername: bot.botInfo?.username,
     }),
     renderStatsCard({
       lang,
@@ -126,6 +127,7 @@ async function processGroup(
       avatarUrl: championAvatar,
       rank: 1,
       weekLabel: label,
+      botUsername: bot.botInfo?.username,
       stats: {
         messages: champion.messages,
         replies: champion.replies,

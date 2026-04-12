@@ -68,6 +68,7 @@ export function registerTestStatsCard(bot: Bot) {
         avatarUrl,
         rank: 1,
         weekLabel: "Week 15 · April 2026",
+        botUsername: bot.botInfo?.username,
         stats: {
           messages: 1247,
           replies: 312,
@@ -110,6 +111,7 @@ export function registerTestStatsCard(bot: Bot) {
         groupTitle:
           (ctx.chat.type !== "private" && ctx.chat.title) || "Test Group",
         weekLabel: "Week 15 · April 2026",
+        botUsername: bot.botInfo?.username,
         winners: [
           {
             category: "topMessager",
