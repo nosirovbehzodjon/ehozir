@@ -147,6 +147,8 @@ export type StatsCardData = {
     stickers: number;
     voices: number;
     media: number;
+    videoNotes: number;
+    gifs: number;
   };
 };
 
@@ -173,7 +175,9 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
       s.reactionsReceived +
       s.stickers +
       s.voices +
-      s.media;
+      s.media +
+      s.videoNotes +
+      s.gifs;
 
     const rows: [string, string][][] = [
       [
@@ -188,7 +192,11 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
         [t.stickers, fmt(s.stickers)],
         [t.voices, fmt(s.voices)],
       ],
-      [[t.media, fmt(s.media)]],
+      [
+        [t.media, fmt(s.media)],
+        [t.gifs, fmt(s.gifs)],
+      ],
+      [[t.videoNotes, fmt(s.videoNotes)]],
     ];
 
     const botHandle = (data.botUsername ?? "").replace(/^@/, "");
@@ -272,7 +280,9 @@ export type LeaderboardCategory =
   | "topReactionReceiver"
   | "topStickerSender"
   | "topVoiceSender"
-  | "topMediaSender";
+  | "topMediaSender"
+  | "topVideoNoteSender"
+  | "topGifSender";
 
 export type LeaderboardWinner = {
   category: LeaderboardCategory;

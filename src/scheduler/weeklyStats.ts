@@ -179,6 +179,8 @@ async function processGroup(
         stickers: champion.stickers,
         voices: champion.voices,
         media: champion.media,
+        videoNotes: champion.videoNotes,
+        gifs: champion.gifs,
       },
     }),
   ]);

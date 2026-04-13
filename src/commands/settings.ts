@@ -1,5 +1,10 @@
 import { Bot, InlineKeyboard } from "grammy";
-import { getNewsHours, setNewsHours } from "@/db/botSettings";
+import {
+  getNewsHours,
+  setNewsHours,
+  getUsefulContentHours,
+  setUsefulContentHours,
+} from "@/db/botSettings";
 
 const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
   .split(",")
@@ -11,15 +16,20 @@ function isDeveloper(userId: number): boolean {
   return DEVELOPER_IDS.includes(userId);
 }
 
-function buildTimeKeyboard(activeHours: number[]): InlineKeyboard {
+type Section = "news" | "useful";
+
+function buildHoursKeyboard(
+  section: Section,
+  activeHours: number[],
+): InlineKeyboard {
   const keyboard = new InlineKeyboard();
-  // 06:00 to 21:00, 4 buttons per row
+  const prefix = section === "news" ? "news_hours_toggle" : "useful_hours_toggle";
   for (let h = 6; h <= 21; h++) {
     const isActive = activeHours.includes(h);
     const label = isActive
       ? `✅ ${String(h).padStart(2, "0")}:00`
       : `${String(h).padStart(2, "0")}:00`;
-    keyboard.text(label, `news_hours_toggle:${h}`);
+    keyboard.text(label, `${prefix}:${h}`);
     if ((h - 5) % 4 === 0) keyboard.row();
   }
   return keyboard;
@@ -32,61 +42,106 @@ function formatActiveHours(hours: number[]): string {
     .join(", ");
 }
 
+async function buildSettingsMessage(
+  section: Section,
+): Promise<{ text: string; keyboard: InlineKeyboard }> {
+  if (section === "news") {
+    const hours = await getNewsHours();
+    return {
+      text: `📰 Daily news\n\nActive hours: ${formatActiveHours(hours)} (Tashkent)\n\nTap to toggle hours on/off.`,
+      keyboard: buildHoursKeyboard("news", hours),
+    };
+  }
+  const hours = await getUsefulContentHours();
+  return {
+    text: `🎬 Useful content (YouTube)\n\nActive hours: ${formatActiveHours(hours)} (Tashkent)\n\nTap to toggle hours on/off.`,
+    keyboard: buildHoursKeyboard("useful", hours),
+  };
+}
+
+function buildSectionPicker(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("📰 Daily news", "time_section:news")
+    .text("🎬 Useful content", "time_section:useful");
+}
+
 export function registerSettings(bot: Bot) {
-  bot.command("settings", async (ctx) => {
+  bot.command("time", async (ctx) => {
     if (ctx.chat.type === "group" || ctx.chat.type === "supergroup") return;
     if (!ctx.from || !isDeveloper(ctx.from.id)) return;
 
-    const currentHours = await getNewsHours();
-    const keyboard = buildTimeKeyboard(currentHours);
-
     await ctx.reply(
-      `⚙️ Bot Settings\n\n📰 Daily news times: ${formatActiveHours(currentHours)} (Tashkent)\n\nTap to toggle hours on/off:`,
-      { reply_markup: keyboard },
+      "⏰ Delivery time settings\n\nWhich feature do you want to configure?",
+      { reply_markup: buildSectionPicker() },
     );
   });
 
-  bot.callbackQuery(/^news_hours_toggle:(\d+)$/, async (ctx) => {
+  bot.callbackQuery(/^time_section:(news|useful)$/, async (ctx) => {
     if (!ctx.from || !isDeveloper(ctx.from.id)) {
       await ctx.answerCallbackQuery({ text: "Developers only." });
       return;
     }
+    const section = (ctx.match as RegExpMatchArray)[1] as Section;
+    const { text, keyboard } = await buildSettingsMessage(section);
+    await ctx.editMessageText(text, { reply_markup: keyboard });
+    await ctx.answerCallbackQuery();
+  });
 
-    const match = ctx.match as RegExpMatchArray;
-    const hour = parseInt(match[1], 10);
-
+  async function handleToggle(
+    section: Section,
+    hour: number,
+    getter: () => Promise<number[]>,
+    setter: (h: number[]) => Promise<void>,
+    ctx: any,
+  ) {
+    if (!ctx.from || !isDeveloper(ctx.from.id)) {
+      await ctx.answerCallbackQuery({ text: "Developers only." });
+      return;
+    }
     if (hour < 6 || hour > 21) {
       await ctx.answerCallbackQuery({ text: "Invalid hour." });
       return;
     }
 
-    const currentHours = await getNewsHours();
-    let updatedHours: number[];
+    const current = await getter();
+    let updated: number[];
 
-    if (currentHours.includes(hour)) {
-      // Don't allow removing the last hour
-      if (currentHours.length <= 1) {
+    if (current.includes(hour)) {
+      if (current.length <= 1) {
         await ctx.answerCallbackQuery({
           text: "At least one hour must be active.",
         });
         return;
       }
-      updatedHours = currentHours.filter((h) => h !== hour);
+      updated = current.filter((h) => h !== hour);
     } else {
-      updatedHours = [...currentHours, hour];
+      updated = [...current, hour];
     }
 
-    await setNewsHours(updatedHours);
+    await setter(updated);
 
-    const keyboard = buildTimeKeyboard(updatedHours);
+    const { text, keyboard } = await buildSettingsMessage(section);
+    await ctx.editMessageText(text, { reply_markup: keyboard });
 
-    await ctx.editMessageText(
-      `⚙️ Bot Settings\n\n📰 Daily news times: ${formatActiveHours(updatedHours)} (Tashkent)\n\nTap to toggle hours on/off:`,
-      { reply_markup: keyboard },
-    );
-
+    const label = section === "news" ? "News" : "Useful content";
     await ctx.answerCallbackQuery({
-      text: `News times: ${formatActiveHours(updatedHours)}`,
+      text: `${label}: ${formatActiveHours(updated)}`,
     });
+  }
+
+  bot.callbackQuery(/^news_hours_toggle:(\d+)$/, async (ctx) => {
+    const hour = parseInt((ctx.match as RegExpMatchArray)[1], 10);
+    await handleToggle("news", hour, getNewsHours, setNewsHours, ctx);
+  });
+
+  bot.callbackQuery(/^useful_hours_toggle:(\d+)$/, async (ctx) => {
+    const hour = parseInt((ctx.match as RegExpMatchArray)[1], 10);
+    await handleToggle(
+      "useful",
+      hour,
+      getUsefulContentHours,
+      setUsefulContentHours,
+      ctx,
+    );
   });
 }

@@ -7,7 +7,9 @@ export type ActionType =
   | "reply"
   | "sticker"
   | "voice"
-  | "media";
+  | "media"
+  | "video_note"
+  | "gif";
 
 export type LogEntry = {
   chat_id: number;

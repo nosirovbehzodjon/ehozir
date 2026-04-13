@@ -8,7 +8,7 @@
     "start": "node dist/bot.js",
     "dev": "tsx watch --env-file=.env src/bot.ts",
     "typecheck": "tsc --noEmit",
-    "deploy:functions": "npx supabase functions deploy redirect --no-verify-jwt"
+    "deploy:functions": "npx supabase functions deploy redirect --no-verify-jwt && npx supabase functions deploy yt-redirect --no-verify-jwt"
   },
   "keywords": [
     "telegram",

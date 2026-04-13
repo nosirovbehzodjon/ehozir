@@ -59,3 +59,22 @@ export async function setNewsHours(hours: number[]): Promise<void> {
   const sorted = [...hours].sort((a, b) => a - b);
   await setBotSetting("news_hours", sorted.join(","));
 }
+
+export async function getUsefulContentHours(): Promise<number[]> {
+  const value = await getBotSetting("useful_content_hours");
+  if (!value) {
+    // Fallback to legacy single useful_content_hour
+    const legacy = await getBotSetting("useful_content_hour");
+    const legacyHour = legacy ? parseInt(legacy, 10) : 10;
+    return [isNaN(legacyHour) ? 10 : legacyHour];
+  }
+  return value
+    .split(",")
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((h) => !isNaN(h) && h >= 0 && h <= 23);
+}
+
+export async function setUsefulContentHours(hours: number[]): Promise<void> {
+  const sorted = [...hours].sort((a, b) => a - b);
+  await setBotSetting("useful_content_hours", sorted.join(","));
+}

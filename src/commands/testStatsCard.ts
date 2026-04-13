@@ -77,6 +77,8 @@ export function registerTestStatsCard(bot: Bot) {
           stickers: 87,
           voices: 19,
           media: 73,
+          videoNotes: 14,
+          gifs: 22,
         },
       });
 

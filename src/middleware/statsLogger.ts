@@ -65,8 +65,11 @@ function classifyMessage(msg: any): ActionType[] {
   const types: ActionType[] = ["message"];
   if (msg.reply_to_message) types.push("reply");
   if (msg.sticker) types.push("sticker");
-  if (msg.voice || msg.video_note) types.push("voice");
-  if (msg.photo || msg.video || msg.animation || msg.document || msg.audio) {
+  if (msg.video_note) types.push("video_note");
+  else if (msg.voice) types.push("voice");
+  if (msg.animation) {
+    types.push("gif");
+  } else if (msg.photo || msg.video || msg.document || msg.audio) {
     types.push("media");
   }
   return types;

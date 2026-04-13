@@ -6,6 +6,8 @@ import { registerHelp } from "@/commands/help";
 import { registerNews } from "@/commands/news";
 import { registerSensitiveContent } from "@/commands/sensitiveContent";
 import { registerTestNews } from "@/commands/testNews";
+import { registerUsefulContent } from "@/commands/usefulContent";
+import { registerDev } from "@/commands/dev";
 import { registerSettings } from "@/commands/settings";
 import { registerNewsStats } from "@/commands/newsStats";
 import { registerTestStatsCard } from "@/commands/testStatsCard";
@@ -22,6 +24,7 @@ import { registerStatsLogger } from "@/middleware/statsLogger";
 import { loadModel } from "@/services/nsfw";
 import { warmupCardRenderer } from "@/services/statsCard";
 import { startDailyNewsScheduler } from "@/scheduler/dailyNews";
+import { startUsefulContentScheduler } from "@/scheduler/usefulContent";
 import { initNotifier, notifyDevelopers } from "@/utils/notify";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -52,6 +55,8 @@ registerHelp(bot);
 registerNews(bot);
 registerSensitiveContent(bot);
 registerTestNews(bot);
+registerUsefulContent(bot);
+registerDev(bot);
 registerSettings(bot);
 registerNewsStats(bot);
 registerTestStatsCard(bot);
@@ -60,6 +65,7 @@ registerGreeting(bot);
 
 // Schedulers
 startDailyNewsScheduler(bot);
+startUsefulContentScheduler(bot);
 startWeeklyStatsScheduler(bot);
 startMonthlyStatsScheduler(bot);
 startYearlyStatsScheduler(bot);

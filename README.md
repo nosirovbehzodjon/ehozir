@@ -24,6 +24,15 @@ A multi-feature Telegram bot for Uzbek community groups built with TypeScript an
 - Configurable delivery times via `/settings` (developer-only, bot chat)
 - Per-source click statistics via `/newsstats` (developer-only, bot chat)
 
+### Useful Content (YouTube)
+- Fetches latest videos from a curated list of YouTube channels via YouTube Data API v3
+- Delivers 5 newest videos per day to subscribed groups
+- Deduplicated by video ID — same video is never sent twice
+- Enable/disable per group with `/foydali` / `/useful` / `/полезное`
+- Configurable delivery hour (default 10:00 Tashkent time, separate from news)
+- Click tracking via Supabase Edge Function
+- Developer commands: `/addChannel`, `/removeChannel`, `/listChannels`, `/testUseful`
+
 ### NSFW Protection
 - Automatic detection and banning of users with sensitive content
 - Checks profile photos, personal channel photos, and message photos
@@ -74,6 +83,7 @@ TELEGRAM_BOT_TOKEN=your_bot_token
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 DEVELOPER_IDS=123456789,987654321
+GOOGLE_API_KEY=your_youtube_data_api_v3_key
 NODE_ENV=production
 ```
 
@@ -121,6 +131,8 @@ npm run build && npm start
 | `/help` | `/yordam` | `/помощь` | List available commands |
 | `/news` | `/yangiliklar` | `/новости` | Enable daily news |
 | `/cancelNews` | `/yangiliklar_bekor` | `/отмена_новостей` | Disable daily news |
+| `/useful` | `/foydali` | `/полезное` | Enable daily useful YouTube videos |
+| `/useful_off` | `/foydali_bekor` | `/отмена_полезного` | Disable daily useful videos |
 | `/uz` | — | — | Switch to Uzbek |
 | `/ru` | — | — | Switch to Russian |
 | `/en` | — | — | Switch to English |
@@ -130,6 +142,7 @@ npm run build && npm start
 | Command | Description |
 |---------|-------------|
 | `/testNews` | Send news to current group now |
+| `/testUseful` | Send useful YouTube videos to current group now |
 
 ### Developer commands (bot chat only)
 
@@ -138,6 +151,9 @@ npm run build && npm start
 | `/settings` | Configure news delivery times |
 | `/newsstats` | View news click statistics |
 | `/newsstats daryo` | View detailed stats for a source |
+| `/addChannel <url\|@handle\|UC...>` | Add a YouTube channel to the curated list |
+| `/removeChannel <channel_id>` | Deactivate a YouTube channel |
+| `/listChannels` | Show all configured YouTube channels |
 
 ## Project Structure
 
