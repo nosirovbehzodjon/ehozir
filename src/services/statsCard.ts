@@ -127,8 +127,11 @@ async function toDataUrl(url: string): Promise<string> {
 
 // ---------------------------------------------------------------------------
 
+export type StatsPeriod = "week" | "month" | "year";
+
 export type StatsCardData = {
   lang?: Lang;
+  period?: StatsPeriod;
   groupTitle: string;
   fullName: string;
   username?: string;
@@ -155,6 +158,12 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
       toDataUrl(data.avatarUrl),
     ]);
     const t = translations[data.lang ?? DEFAULT_LANG].statsCard;
+    const championLabel =
+      data.period === "month"
+        ? t.monthlyChampion
+        : data.period === "year"
+          ? t.yearlyChampion
+          : t.weeklyChampion;
 
     const s = data.stats;
     const total =
@@ -187,7 +196,7 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
     const markup = html(`
       <div style="display:flex;width:900px;height:1440px;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);padding:55px;flex-direction:column;font-family:Montserrat;color:white;">
         <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:26px;">
-          <div style="display:flex;font-size:22px;letter-spacing:6px;color:#a0a0c0;text-transform:uppercase;margin-bottom:6px;">${escapeHtml(t.weeklyChampion)}</div>
+          <div style="display:flex;font-size:22px;letter-spacing:6px;color:#a0a0c0;text-transform:uppercase;margin-bottom:6px;">${escapeHtml(championLabel)}</div>
           <div style="display:flex;font-size:30px;font-weight:900;color:white;margin-bottom:4px;">${escapeHtml(data.groupTitle)}</div>
           <div style="display:flex;font-size:24px;color:#a3e635;font-weight:700;">${escapeHtml(data.weekLabel)}</div>
         </div>
@@ -274,6 +283,7 @@ export type LeaderboardWinner = {
 
 export type LeaderboardCardData = {
   lang?: Lang;
+  period?: StatsPeriod;
   groupTitle: string;
   weekLabel: string;
   winners: LeaderboardWinner[];
@@ -289,6 +299,12 @@ export async function renderLeaderboardCard(
       loadFontsOnce(),
     ]);
     const t = translations[data.lang ?? DEFAULT_LANG].statsCard;
+    const leaderboardLabel =
+      data.period === "month"
+        ? t.monthlyLeaderboard
+        : data.period === "year"
+          ? t.yearlyLeaderboard
+          : t.weeklyLeaderboard;
 
     const avatars = await Promise.all(
       data.winners.map((w) => toDataUrl(w.avatarUrl)),
@@ -304,7 +320,7 @@ export async function renderLeaderboardCard(
     const markup = html(`
       <div style="display:flex;width:900px;height:${height}px;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);padding:55px;flex-direction:column;font-family:Montserrat;color:white;">
         <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:40px;">
-          <div style="display:flex;font-size:22px;letter-spacing:6px;color:#a0a0c0;text-transform:uppercase;margin-bottom:10px;">${escapeHtml(t.weeklyLeaderboard)}</div>
+          <div style="display:flex;font-size:22px;letter-spacing:6px;color:#a0a0c0;text-transform:uppercase;margin-bottom:10px;">${escapeHtml(leaderboardLabel)}</div>
           <div style="display:flex;font-size:40px;font-weight:900;color:white;margin-bottom:6px;">${escapeHtml(data.groupTitle)}</div>
           <div style="display:flex;font-size:24px;color:#a3e635;font-weight:700;">${escapeHtml(data.weekLabel)}</div>
         </div>

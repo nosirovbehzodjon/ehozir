@@ -7,7 +7,8 @@ import {
   type NsfwResult,
 } from "@/services/nsfw";
 import { escapeMarkdown } from "@/utils/markdown";
-import { getGroupLanguage } from "@/db/settings";
+import { getGroupLanguage, isFeatureEnabled } from "@/db/settings";
+import { NSFW_FEATURE } from "@/commands/sensitiveContent";
 import { t } from "@/i18n";
 import {
   isKnownSensitiveUser,
@@ -415,6 +416,11 @@ export function registerNsfwMiddleware(bot: Bot) {
         return;
       }
 
+      if (!(await isFeatureEnabled(chat.id, NSFW_FEATURE, false))) {
+        await next();
+        return;
+      }
+
       const banned = await checkUserProfile(
         bot,
         chat.id,
@@ -441,6 +447,11 @@ export function registerNsfwMiddleware(bot: Bot) {
         user.is_bot ||
         (chat.type !== "group" && chat.type !== "supergroup")
       ) {
+        await next();
+        return;
+      }
+
+      if (!(await isFeatureEnabled(chat.id, NSFW_FEATURE, false))) {
         await next();
         return;
       }
@@ -509,6 +520,11 @@ export function registerNsfwMiddleware(bot: Bot) {
         user.is_bot ||
         (chat.type !== "group" && chat.type !== "supergroup")
       ) {
+        await next();
+        return;
+      }
+
+      if (!(await isFeatureEnabled(chat.id, NSFW_FEATURE, false))) {
         await next();
         return;
       }

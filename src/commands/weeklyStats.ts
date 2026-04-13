@@ -1,6 +1,10 @@
 import { Bot, InputFile } from "grammy";
 import { getPendingCard, updatePendingStatus } from "@/db/pendingCards";
-import { runWeeklyStatsNow } from "@/scheduler/weeklyStats";
+import {
+  runWeeklyStatsNow,
+  runMonthlyStatsNow,
+  runYearlyStatsNow,
+} from "@/scheduler/weeklyStats";
 
 const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
   .split(",")
@@ -23,6 +27,32 @@ export function registerWeeklyStats(bot: Bot) {
     try {
       await runWeeklyStatsNow(bot);
       await ctx.reply("Weekly stats job finished.");
+    } catch (err) {
+      await ctx.reply(`Job failed: ${(err as Error).message}`);
+    }
+  });
+
+  bot.command("testmonthlystats", async (ctx) => {
+    if (ctx.chat.type === "group" || ctx.chat.type === "supergroup") return;
+    if (!ctx.from || !isDeveloper(ctx.from.id)) return;
+
+    await ctx.reply("Running monthly stats job now...");
+    try {
+      await runMonthlyStatsNow(bot);
+      await ctx.reply("Monthly stats job finished.");
+    } catch (err) {
+      await ctx.reply(`Job failed: ${(err as Error).message}`);
+    }
+  });
+
+  bot.command("testyearlystats", async (ctx) => {
+    if (ctx.chat.type === "group" || ctx.chat.type === "supergroup") return;
+    if (!ctx.from || !isDeveloper(ctx.from.id)) return;
+
+    await ctx.reply("Running yearly stats job now...");
+    try {
+      await runYearlyStatsNow(bot);
+      await ctx.reply("Yearly stats job finished.");
     } catch (err) {
       await ctx.reply(`Job failed: ${(err as Error).message}`);
     }

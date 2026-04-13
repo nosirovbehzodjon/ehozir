@@ -1,6 +1,7 @@
 import { supabase } from "./client";
 
 export type PendingCardStatus = "pending" | "approved" | "rejected";
+export type StatsPeriod = "week" | "month" | "year";
 
 export type PendingCardRow = {
   id: number;
@@ -8,6 +9,7 @@ export type PendingCardRow = {
   leaderboard_file_id: string | null;
   champion_file_id: string | null;
   caption: string | null;
+  period: StatsPeriod;
   status: PendingCardStatus;
   created_at: string;
   decided_at: string | null;

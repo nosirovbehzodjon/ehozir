@@ -143,5 +143,107 @@ export function pickChampion(
   return best;
 }
 
+type StatRow = {
+  user_id: number;
+  messages: number | null;
+  replies: number | null;
+  reactions_given: number | null;
+  reactions_received: number | null;
+  stickers: number | null;
+  voices: number | null;
+  media: number | null;
+  period_start: string;
+};
+
+function rowsToUserCounts(rows: StatRow[]): UserActionCounts[] {
+  const map = new Map<number, UserActionCounts>();
+  for (const r of rows) {
+    let e = map.get(r.user_id);
+    if (!e) {
+      e = {
+        userId: r.user_id,
+        messages: 0,
+        replies: 0,
+        reactionsGiven: 0,
+        reactionsReceived: 0,
+        stickers: 0,
+        voices: 0,
+        media: 0,
+      };
+      map.set(r.user_id, e);
+    }
+    e.messages          += Number(r.messages           ?? 0);
+    e.replies           += Number(r.replies            ?? 0);
+    e.reactionsGiven    += Number(r.reactions_given    ?? 0);
+    e.reactionsReceived += Number(r.reactions_received ?? 0);
+    e.stickers          += Number(r.stickers           ?? 0);
+    e.voices            += Number(r.voices             ?? 0);
+    e.media             += Number(r.media              ?? 0);
+  }
+  return Array.from(map.values());
+}
+
+/**
+ * Pull per-user activity for a chat across a date range from the given
+ * aggregate table. `start` inclusive, `end` exclusive, both ISO YYYY-MM-DD.
+ */
+async function getActivityFromTable(
+  table: "weekly_stats" | "monthly_stats" | "yearly_stats",
+  chatId: number,
+  start: string,
+  end: string,
+): Promise<UserActionCounts[]> {
+  const { data, error } = await supabase
+    .from(table)
+    .select(
+      "user_id, messages, replies, reactions_given, reactions_received, stickers, voices, media, period_start",
+    )
+    .eq("chat_id", chatId)
+    .gte("period_start", start)
+    .lt("period_start", end);
+
+  if (error) {
+    console.error(`${table} select error:`, error.message);
+    return [];
+  }
+  return rowsToUserCounts((data ?? []) as StatRow[]);
+}
+
+/**
+ * Previous calendar month's per-user activity, sourced from `monthly_stats`
+ * (populated by `aggregate_monthly_stats` which rolls up `weekly_stats`).
+ */
+export async function getMonthlyActivity(
+  chatId: number,
+): Promise<UserActionCounts[]> {
+  const now = new Date();
+  const thisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const prevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  return getActivityFromTable(
+    "monthly_stats",
+    chatId,
+    prevMonth.toISOString().slice(0, 10),
+    thisMonth.toISOString().slice(0, 10),
+  );
+}
+
+/**
+ * Previous calendar year's per-user activity, sourced from `yearly_stats`
+ * (populated by `aggregate_yearly_stats` which rolls up `monthly_stats`).
+ */
+export async function getYearlyActivity(
+  chatId: number,
+): Promise<UserActionCounts[]> {
+  const now = new Date();
+  const thisYear = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+  const prevYear = new Date(Date.UTC(now.getUTCFullYear() - 1, 0, 1));
+  return getActivityFromTable(
+    "yearly_stats",
+    chatId,
+    prevYear.toISOString().slice(0, 10),
+    thisYear.toISOString().slice(0, 10),
+  );
+}
+
 // re-export ACTION_TO_CATEGORY in case callers need it
 export { ACTION_TO_CATEGORY };

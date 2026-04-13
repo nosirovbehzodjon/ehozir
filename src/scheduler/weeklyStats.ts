@@ -7,14 +7,20 @@ import {
 } from "@/services/statsCard";
 import {
   getWeeklyActivity,
+  getMonthlyActivity,
+  getYearlyActivity,
   pickWinners,
   pickChampion,
+  type UserActionCounts,
 } from "@/db/weeklyWinners";
 import { listAllGroups, getGroupMember } from "@/db/groups";
 import { getGroupLanguage } from "@/db/settings";
 import { insertPendingCard } from "@/db/pendingCards";
+import { runAggregation } from "@/db/logs";
 import { notifyDevelopers } from "@/utils/notify";
 import { translations } from "@/i18n/translations";
+
+export type StatsPeriod = "week" | "month" | "year";
 
 const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
   .split(",")
@@ -65,6 +71,40 @@ function weekLabel(): string {
   return `${start} – ${end}`;
 }
 
+function monthLabel(): string {
+  // Previous calendar month, e.g. "March 2026"
+  const now = new Date();
+  const prev = new Date(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);
+  return prev.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
+function yearLabel(): string {
+  // Previous calendar year
+  return String(new Date().getUTCFullYear() - 1);
+}
+
+function periodLabel(period: StatsPeriod): string {
+  if (period === "month") return monthLabel();
+  if (period === "year") return yearLabel();
+  return weekLabel();
+}
+
+async function getActivityForPeriod(
+  chatId: number,
+  period: StatsPeriod,
+): Promise<UserActionCounts[]> {
+  if (period === "month") return getMonthlyActivity(chatId);
+  if (period === "year") return getYearlyActivity(chatId);
+  return getWeeklyActivity(chatId, 7);
+}
+
+function captionForPeriod(lang: "uz" | "ru" | "en", period: StatsPeriod, bot: string): string {
+  const t = translations[lang].statsCard;
+  if (period === "month") return t.monthlyCaption(bot);
+  if (period === "year") return t.yearlyCaption(bot);
+  return t.weeklyCaption(bot);
+}
+
 /**
  * Render + upload one group's weekly package, send it to each developer
  * with Approve/Reject buttons, and record a pending row for each.
@@ -72,10 +112,11 @@ function weekLabel(): string {
 async function processGroup(
   bot: Bot,
   chat: { chat_id: number; title: string | null },
+  period: StatsPeriod = "week",
 ): Promise<void> {
-  const activity = await getWeeklyActivity(chat.chat_id, 7);
+  const activity = await getActivityForPeriod(chat.chat_id, period);
   if (activity.length === 0) {
-    console.log(`[weeklyStats] ${chat.chat_id} — no activity, skipped`);
+    console.log(`[${period}Stats] ${chat.chat_id} — no activity, skipped`);
     return;
   }
 
@@ -85,7 +126,7 @@ async function processGroup(
 
   const lang = await getGroupLanguage(chat.chat_id);
   const groupTitle = chat.title || `Group ${chat.chat_id}`;
-  const label = weekLabel();
+  const label = periodLabel(period);
 
   // Resolve winner names + avatars for leaderboard.
   const resolvedWinners: LeaderboardWinner[] = await Promise.all(
@@ -114,6 +155,7 @@ async function processGroup(
   const [leaderboardPng, championPng] = await Promise.all([
     renderLeaderboardCard({
       lang,
+      period,
       groupTitle,
       weekLabel: label,
       winners: resolvedWinners,
@@ -121,6 +163,7 @@ async function processGroup(
     }),
     renderStatsCard({
       lang,
+      period,
       groupTitle,
       fullName: championName,
       username: championUsername,
@@ -153,7 +196,7 @@ async function processGroup(
   // @bot_username mention so readers can add the bot to their own groups,
   // and asks for admin rights so reaction stats become available.
   const botUsername = (bot.botInfo?.username ?? "").replace(/^@/, "");
-  const groupCaption = translations[lang].statsCard.weeklyCaption(botUsername);
+  const groupCaption = captionForPeriod(lang, period, botUsername);
 
   const leaderboardMsg = await bot.api.sendPhoto(
     firstDev,
@@ -176,6 +219,7 @@ async function processGroup(
     leaderboard_file_id: leaderboardFileId,
     champion_file_id: championFileId,
     caption: groupCaption,
+    period,
   });
 
   if (pendingId === null) return;
@@ -189,7 +233,7 @@ async function processGroup(
     try {
       await bot.api.sendMessage(
         devId,
-        `Approve weekly cards for <b>${escapeHtml(groupTitle)}</b>?`,
+        `Approve ${period}ly cards for <b>${escapeHtml(groupTitle)}</b>?`,
         { parse_mode: "HTML", reply_markup: kb },
       );
     } catch (err) {
@@ -202,19 +246,45 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export async function runWeeklyStatsNow(bot: Bot): Promise<void> {
+export async function runStatsNow(
+  bot: Bot,
+  period: StatsPeriod = "week",
+): Promise<void> {
+  // Monthly/yearly need aggregate tables populated before reading. Weekly
+  // reads raw logs and needs no pre-aggregation.
+  if (period === "month") {
+    await runAggregation("weekly");
+    await runAggregation("monthly");
+  } else if (period === "year") {
+    await runAggregation("weekly");
+    await runAggregation("monthly");
+    await runAggregation("yearly");
+  }
+
   const groups = await listAllGroups();
-  console.log(`[weeklyStats] processing ${groups.length} groups`);
+  console.log(`[${period}Stats] processing ${groups.length} groups`);
   for (const g of groups) {
     try {
-      await processGroup(bot, g);
+      await processGroup(bot, g, period);
     } catch (err) {
-      console.error(`[weeklyStats] group ${g.chat_id} failed:`, err);
+      console.error(`[${period}Stats] group ${g.chat_id} failed:`, err);
       await notifyDevelopers(
-        `weeklyStats failed for ${g.chat_id}: ${(err as Error).message}`,
+        `${period}Stats failed for ${g.chat_id}: ${(err as Error).message}`,
       );
     }
   }
+}
+
+export async function runWeeklyStatsNow(bot: Bot): Promise<void> {
+  return runStatsNow(bot, "week");
+}
+
+export async function runMonthlyStatsNow(bot: Bot): Promise<void> {
+  return runStatsNow(bot, "month");
+}
+
+export async function runYearlyStatsNow(bot: Bot): Promise<void> {
+  return runStatsNow(bot, "year");
 }
 
 export function startWeeklyStatsScheduler(bot: Bot): void {
@@ -230,4 +300,35 @@ export function startWeeklyStatsScheduler(bot: Bot): void {
     { timezone: "Asia/Tashkent" },
   );
   console.log("[weeklyStats] scheduler started (Mon 03:00 Asia/Tashkent)");
+}
+
+export function startMonthlyStatsScheduler(bot: Bot): void {
+  // 1st of month, 04:00 Tashkent — after weekly job window, early enough
+  // that pg_cron's own monthly roll-up (05:15 Tashkent) has not yet drained
+  // the previous month's rows from monthly_stats.
+  cron.schedule(
+    "0 4 1 * *",
+    () => {
+      runMonthlyStatsNow(bot).catch((err) =>
+        console.error("[monthlyStats] scheduler run failed:", err),
+      );
+    },
+    { timezone: "Asia/Tashkent" },
+  );
+  console.log("[monthlyStats] scheduler started (1st 04:00 Asia/Tashkent)");
+}
+
+export function startYearlyStatsScheduler(bot: Bot): void {
+  // Jan 1, 05:00 Tashkent — after the monthly job so the prior year's
+  // December rows have been rolled up into yearly_stats.
+  cron.schedule(
+    "0 5 1 1 *",
+    () => {
+      runYearlyStatsNow(bot).catch((err) =>
+        console.error("[yearlyStats] scheduler run failed:", err),
+      );
+    },
+    { timezone: "Asia/Tashkent" },
+  );
+  console.log("[yearlyStats] scheduler started (Jan 1 05:00 Asia/Tashkent)");
 }

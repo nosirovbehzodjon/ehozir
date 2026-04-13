@@ -4,13 +4,18 @@ import { registerHamma } from "@/commands/hamma";
 import { registerStats } from "@/commands/stats";
 import { registerHelp } from "@/commands/help";
 import { registerNews } from "@/commands/news";
+import { registerSensitiveContent } from "@/commands/sensitiveContent";
 import { registerTestNews } from "@/commands/testNews";
 import { registerSettings } from "@/commands/settings";
 import { registerNewsStats } from "@/commands/newsStats";
 import { registerTestStatsCard } from "@/commands/testStatsCard";
 import { registerWeeklyStats } from "@/commands/weeklyStats";
 import { registerGreeting } from "@/commands/greeting";
-import { startWeeklyStatsScheduler } from "@/scheduler/weeklyStats";
+import {
+  startWeeklyStatsScheduler,
+  startMonthlyStatsScheduler,
+  startYearlyStatsScheduler,
+} from "@/scheduler/weeklyStats";
 import { registerLanguage } from "@/commands/language";
 import { registerNsfwMiddleware } from "@/middleware/nsfw";
 import { registerStatsLogger } from "@/middleware/statsLogger";
@@ -45,6 +50,7 @@ registerHamma(bot);
 registerStats(bot);
 registerHelp(bot);
 registerNews(bot);
+registerSensitiveContent(bot);
 registerTestNews(bot);
 registerSettings(bot);
 registerNewsStats(bot);
@@ -55,6 +61,8 @@ registerGreeting(bot);
 // Schedulers
 startDailyNewsScheduler(bot);
 startWeeklyStatsScheduler(bot);
+startMonthlyStatsScheduler(bot);
+startYearlyStatsScheduler(bot);
 
 // Error handler
 bot.catch(async (err) => {
