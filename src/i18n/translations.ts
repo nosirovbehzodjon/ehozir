@@ -254,7 +254,7 @@ export const translations: Record<Lang, Translation> = {
       topReactionGiver: "Reaksiyalarni ayamaydigan a'zo",
       topReactionReceiver: "Eng ko'p reaksiya olgan a'zo",
       topStickerSender: "Stiker ustasi",
-      topVoiceSender: "Ovoz  xabarlarni yaxshi ko'radigan a'zo",
+      topVoiceSender: "Ovozli xabarlarni yaxshi ko'radilar",
       topMediaSender: "Eng ko'p media yuborgan a'zo",
       weeklyCaption: (bot) =>
         `🏆 Haftalik statistika — bir haftalik faolligimiz qisqacha!\n\nEng faol a'zolarimizni tabriklaymiz! Yangi hafta — yangi imkoniyatlar. Siz ham kuzatishda qoling 🔥\n\n🤖 Botni o'z guruhingizga qo'shing: @${bot}\nHar bir guruh uchun qiziqarli statistikalar va yangiliklar!\n\n⚠️ Eng ko'p reaksiya qo'ygan va olgan a'zolarni aniqlash uchun botga admin huquqlari kerak. Iltimos, botni adminga qo'shing.`,
