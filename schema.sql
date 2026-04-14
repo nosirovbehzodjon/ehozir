@@ -261,6 +261,9 @@ create table if not exists public.pending_weekly_cards (
   chat_id bigint not null,
   leaderboard_file_id text,
   champion_file_id text,
+  silver_file_id text,
+  bronze_file_id text,
+  top_ten_file_id text,
   caption text,
   period text not null default 'week',       -- week | month | year
   status text not null default 'pending',    -- pending | approved | rejected
@@ -270,6 +273,15 @@ create table if not exists public.pending_weekly_cards (
 
 alter table public.pending_weekly_cards
   add column if not exists period text not null default 'week';
+
+alter table public.pending_weekly_cards
+  add column if not exists silver_file_id text;
+
+alter table public.pending_weekly_cards
+  add column if not exists bronze_file_id text;
+
+alter table public.pending_weekly_cards
+  add column if not exists top_ten_file_id text;
 
 create index if not exists pending_weekly_cards_status_idx
   on public.pending_weekly_cards (status);
@@ -589,6 +601,27 @@ create index if not exists useful_content_fetched_at_idx
 
 create index if not exists useful_content_channel_id_idx
   on public.useful_content (channel_id);
+
+-- Track how many times each video has been delivered. Videos that hit
+-- send_count >= 2 are pruned by the scheduler, so we never spam a group
+-- with the same clip more than twice.
+alter table public.useful_content
+  add column if not exists send_count integer not null default 0;
+
+create index if not exists useful_content_send_count_idx
+  on public.useful_content (send_count, published_at desc);
+
+-- Bump send_count for a batch of useful_content rows in one round trip,
+-- called by the scheduler after every delivery. Created with `or replace`
+-- so re-running this schema upgrades older installs cleanly.
+create or replace function public.increment_useful_content_sent(p_ids bigint[])
+returns void
+language sql
+as $$
+  update public.useful_content
+     set send_count = send_count + 1
+   where id = any(p_ids);
+$$;
 
 create table if not exists public.useful_content_clicks (
   id serial primary key,

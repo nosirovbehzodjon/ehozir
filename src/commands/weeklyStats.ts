@@ -1,4 +1,5 @@
-import { Bot, InputFile } from "grammy";
+import { Bot, InputMediaBuilder } from "grammy";
+import type { InputMediaPhoto } from "grammy/types";
 import { getPendingCard, updatePendingStatus } from "@/db/pendingCards";
 import {
   runWeeklyStatsNow,
@@ -80,16 +81,26 @@ export function registerWeeklyStats(bot: Bot) {
     }
 
     try {
-      // Champion card first (no caption), then leaderboard with the
-      // localized caption — Telegram shows the caption under the last
-      // photo when clients view them in order.
-      if (row.champion_file_id) {
-        await ctx.api.sendPhoto(row.chat_id, row.champion_file_id);
-      }
-      if (row.leaderboard_file_id) {
-        await ctx.api.sendPhoto(row.chat_id, row.leaderboard_file_id, {
-          caption: row.caption ?? undefined,
-        });
+      // Send all cards as a single album (sendMediaGroup, max 10 items).
+      // Order: gold → silver → bronze → top10 → leaderboard. The localized
+      // caption goes on the first item so Telegram shows it as the album
+      // caption in clients that support it.
+      const fileIds = [
+        row.champion_file_id,
+        row.silver_file_id,
+        row.bronze_file_id,
+        row.top_ten_file_id,
+        row.leaderboard_file_id,
+      ].filter((id): id is string => !!id);
+
+      if (fileIds.length > 0) {
+        const caption = row.caption ?? undefined;
+        const media: InputMediaPhoto[] = fileIds.map((id, i) =>
+          i === 0
+            ? InputMediaBuilder.photo(id, caption ? { caption } : undefined)
+            : InputMediaBuilder.photo(id),
+        );
+        await ctx.api.sendMediaGroup(row.chat_id, media);
       }
       await updatePendingStatus(id, "approved");
       await ctx.editMessageText(

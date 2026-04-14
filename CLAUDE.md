@@ -40,7 +40,7 @@ src/
     news.ts               — External news DB functions (insert, click tracking, stats)
     sensitiveLog.ts       — NSFW profile log & check cache (sensitive_profile_log, nsfw_check_log)
     youtubeChannels.ts    — Curated YouTube channel list CRUD (youtube_channels)
-    usefulContent.ts      — Useful content pool + click tracking + per-group delivery helpers (useful_content, useful_content_clicks)
+    usefulContent.ts      — Useful content pool + click tracking + per-group delivery helpers (useful_content, useful_content_clicks). Includes pickUsefulContentForDelivery (channel round-robin), send-count bumping, prune exhausted/old rows, and getMonthlyUsefulClicksByChannel for /usefulstats.
   commands/
     hamma.ts              — /hamma, /all — mention all tracked members (group only)
     stats.ts              — /stats, /statistika, /статистика — tracked vs total member counts (group only)
@@ -102,7 +102,7 @@ Idempotent DDL for Supabase tables. Re-run any time the schema changes — all s
   - Unique index on `(source, external_id)` for deduplication.
 - `external_news_clicks(id serial PK, news_id FK->external_news, chat_id, clicked_at)` — click tracking per news item for partner statistics.
 - `youtube_channels(channel_id PK, handle, title, uploads_playlist_id, is_active, added_at)` — curated YouTube channel list. `uploads_playlist_id` is cached from `channels.list` so the daily cron only pays 1 quota unit per channel (`playlistItems.list`).
-- `useful_content(id serial PK, video_id unique, channel_id FK->youtube_channels, channel_title, title, thumbnail_url, link, published_at, fetched_at)` — deduped YouTube video pool.
+- `useful_content(id serial PK, video_id unique, channel_id FK->youtube_channels, channel_title, title, thumbnail_url, link, published_at, fetched_at, send_count)` — deduped YouTube video pool. `send_count` tracks how many times a row has been broadcast; the scheduler prunes rows when it hits 2, and also prunes anything older than 365 days.
 - `useful_content_clicks(id serial PK, content_id FK->useful_content, chat_id, clicked_at)` — click tracking for useful videos.
 - `sensitive_profile_log(user_id PK, username, first_name, last_name, reason, category, confidence, detected_in_chat_id, created_at)` — flagged NSFW profiles for cross-group instant banning.
 - `nsfw_check_log(user_id PK, checked_at)` — tracks when each user was last NSFW-scanned (24h TTL, production only).
@@ -123,7 +123,7 @@ Idempotent DDL for Supabase tables. Re-run any time the schema changes — all s
 - **Multiple news delivery times**: News hours stored as comma-separated list in `bot_settings` (e.g. `"11,19"`). Scheduler runs hourly and checks if current Tashkent hour is in the list. Configurable via `/settings` multi-toggle keyboard.
 - **News click tracking via Edge Function**: Links point to a Supabase Edge Function that records clicks in `external_news_clicks` and 302 redirects to the actual article URL.
 - **Timezone-aware scheduling**: Cron runs in `Asia/Tashkent` timezone to match Uzbekistan local time.
-- **Useful content (YouTube, opt-in per group)**: Daily cron fetches latest uploads from each active row in `youtube_channels` via `playlistItems.list` (1 unit/channel, cheap). New videos are upserted into `useful_content` (deduped by `video_id`), then 5 newest are sent to every group with `group_settings.feature='usefulContent'` enabled. Delivery hour is stored in `bot_settings.useful_content_hour` (default `10`, Tashkent), separate from news hours to avoid spam. Click tracking goes through the `yt-redirect` Edge Function.
+- **Useful content (YouTube, opt-in per group)**: Daily cron fetches latest uploads from each active row in `youtube_channels` via `playlistItems.list` (1 unit/channel, cheap). New videos are upserted into `useful_content` (deduped by `video_id`), then 10 are picked via `pickUsefulContentForDelivery` and sent to every group with `group_settings.feature='usefulContent'` enabled. Pick rules: only rows with `send_count < 2`, prefer never-sent, round-robin across channels so one prolific channel can't dominate. After each daily send the delivered rows have their `send_count` bumped once; rows that hit `send_count >= 2` are pruned, and any row older than 365 days (by `fetched_at`) is also pruned. Delivery hour is stored in `bot_settings.useful_content_hour` (default `10`, Tashkent), separate from news hours to avoid spam. Click tracking goes through the `yt-redirect` Edge Function; `/usefulstats [YYYY-MM]` aggregates clicks per channel for a given month via `getMonthlyUsefulClicksByChannel`.
 - **YouTube API cost discipline**: Never use `search.list` (100 units) — always resolve channels once via `channels.list` (1 unit) to cache `uploads_playlist_id`, then poll `playlistItems.list` (1 unit) in the cron. With 50 channels that's ~50 units/day against a 10,000/day free quota.
 - **Pending channel seed pattern**: `schema.sql` seeds channels with synthetic `pending:@handle` IDs and `uploads_playlist_id='pending'`. On first scheduler run, `resolvePendingChannels()` upgrades each pending row into a real resolved row via `resolveChannel()` and deactivates the placeholder.
 - **Command scoping**: Group commands (member mentions, news toggle, language, help) only work in groups. Bot commands (`/settings`, `/newsstats`) only work in private bot chat. `/testNews` works in groups but is developer-only.
@@ -186,6 +186,7 @@ Each command has aliases in Uzbek, Russian, and English:
 |---------|-------------|
 | `/settings` | Configure daily news delivery times via inline keyboard |
 | `/newsstats` | View news click statistics (summary or per source) |
+| `/usefulstats [YYYY-MM]` | View useful-content click statistics per channel for a given month (default: current) |
 | `/addChannel <url\|@handle\|UC...>` | Add a YouTube channel to the curated list |
 | `/removeChannel <channel_id>` | Deactivate a YouTube channel |
 | `/listChannels` | Show all configured YouTube channels |

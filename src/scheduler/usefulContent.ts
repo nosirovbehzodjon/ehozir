@@ -6,7 +6,10 @@ import {
 } from "@/db/youtubeChannels";
 import {
   insertUsefulContent,
-  getLatestUsefulContent,
+  pickUsefulContentForDelivery,
+  incrementUsefulContentSent,
+  pruneExhaustedUsefulContent,
+  pruneOldUsefulContent,
   getGroupsWithUsefulContentEnabled,
   type UsefulContentRow,
 } from "@/db/usefulContent";
@@ -16,7 +19,7 @@ import { t, type Lang } from "@/i18n";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
 const TIMEZONE = "Asia/Tashkent";
-const MAX_PER_DELIVERY = 5;
+const MAX_PER_DELIVERY = 10;
 
 function buildTrackingUrl(contentId: number, chatId: number): string {
   return `${SUPABASE_URL}/functions/v1/yt-redirect?id=${contentId}&chat=${chatId}`;
@@ -119,7 +122,7 @@ export async function sendUsefulContentToChat(
   lang: Lang,
 ): Promise<boolean> {
   await fetchAndStoreUploads();
-  const rows = await getLatestUsefulContent(MAX_PER_DELIVERY);
+  const rows = await pickUsefulContentForDelivery(MAX_PER_DELIVERY);
   if (rows.length === 0) return false;
 
   const text = buildMessage(rows, chatId, lang);
@@ -127,13 +130,19 @@ export async function sendUsefulContentToChat(
     parse_mode: "HTML",
     link_preview_options: { is_disabled: false },
   });
+
+  // Test-send goes to one chat but still consumes a "delivery" slot — bump
+  // send_count so reruns honour the ≤2 cap.
+  await incrementUsefulContentSent(rows.map((r) => r.id));
+  await pruneExhaustedUsefulContent();
+  await pruneOldUsefulContent();
   return true;
 }
 
 export async function sendDailyUsefulContent(bot: Bot): Promise<number> {
   await fetchAndStoreUploads();
   const [rows, groups] = await Promise.all([
-    getLatestUsefulContent(MAX_PER_DELIVERY),
+    pickUsefulContentForDelivery(MAX_PER_DELIVERY),
     getGroupsWithUsefulContentEnabled(),
   ]);
   if (rows.length === 0 || groups.length === 0) return 0;
@@ -150,6 +159,13 @@ export async function sendDailyUsefulContent(bot: Bot): Promise<number> {
       console.error(`Failed to send useful content to ${group.chatId}:`, err);
     }
   }
+
+  // One daily batch counts as one "send" across the fleet — we bump once
+  // per row after broadcasting, not once per group, so a 10-item slate
+  // remains eligible for one more daily cycle before hitting the cap.
+  await incrementUsefulContentSent(rows.map((r) => r.id));
+  await pruneExhaustedUsefulContent();
+  await pruneOldUsefulContent();
   return groups.length;
 }
 

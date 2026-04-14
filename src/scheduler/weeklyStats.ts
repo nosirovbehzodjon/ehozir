@@ -3,14 +3,16 @@ import cron from "node-cron";
 import {
   renderLeaderboardCard,
   renderStatsCard,
+  renderTopTenCard,
   type LeaderboardWinner,
+  type TopTenEntry,
 } from "@/services/statsCard";
 import {
   getWeeklyActivity,
   getMonthlyActivity,
   getYearlyActivity,
   pickWinners,
-  pickChampion,
+  pickTopN,
   type UserActionCounts,
 } from "@/db/weeklyWinners";
 import { listAllGroups, getGroupMember } from "@/db/groups";
@@ -121,8 +123,9 @@ async function processGroup(
   }
 
   const winners = pickWinners(activity);
-  const champion = pickChampion(activity);
-  if (winners.length === 0 || !champion) return;
+  const topTen = pickTopN(activity, 10);
+  const topThree = topTen.slice(0, 3);
+  if (winners.length === 0 || topThree.length === 0) return;
 
   const lang = await getGroupLanguage(chat.chat_id);
   const groupTitle = chat.title || `Group ${chat.chat_id}`;
@@ -143,16 +146,35 @@ async function processGroup(
     }),
   );
 
-  // Champion data.
-  const championMember = await getGroupMember(chat.chat_id, champion.userId);
-  const championName = championMember
-    ? fullName(championMember)
-    : `User ${champion.userId}`;
-  const championUsername = championMember?.username ?? undefined;
-  const championAvatar = await getUserAvatar(bot, champion.userId);
+  // Resolve top 10 users once; first 3 are reused for the podium cards.
+  const resolvedTopTen = await Promise.all(
+    topTen.map(async (user) => {
+      const member = await getGroupMember(chat.chat_id, user.userId);
+      const name = member ? fullName(member) : `User ${user.userId}`;
+      const username = member?.username ?? undefined;
+      const avatarUrl = await getUserAvatar(bot, user.userId);
+      return { user, name, username, avatarUrl };
+    }),
+  );
+  const resolvedTop = resolvedTopTen.slice(0, 3);
 
-  // Render both cards.
-  const [leaderboardPng, championPng] = await Promise.all([
+  const topTenEntries: TopTenEntry[] = resolvedTopTen.map((r) => ({
+    fullName: r.name,
+    avatarUrl: r.avatarUrl,
+    total:
+      r.user.messages +
+      r.user.replies +
+      r.user.reactionsGiven +
+      r.user.reactionsReceived +
+      r.user.stickers +
+      r.user.voices +
+      r.user.media +
+      r.user.videoNotes +
+      r.user.gifs,
+  }));
+
+  // Render leaderboard + top10 + up to 3 podium cards in parallel.
+  const [leaderboardPng, topTenPng, ...podiumPngs] = await Promise.all([
     renderLeaderboardCard({
       lang,
       period,
@@ -161,29 +183,42 @@ async function processGroup(
       winners: resolvedWinners,
       botUsername: bot.botInfo?.username,
     }),
-    renderStatsCard({
+    renderTopTenCard({
       lang,
       period,
       groupTitle,
-      fullName: championName,
-      username: championUsername,
-      avatarUrl: championAvatar,
-      rank: 1,
       weekLabel: label,
+      entries: topTenEntries,
       botUsername: bot.botInfo?.username,
-      stats: {
-        messages: champion.messages,
-        replies: champion.replies,
-        reactionsGiven: champion.reactionsGiven,
-        reactionsReceived: champion.reactionsReceived,
-        stickers: champion.stickers,
-        voices: champion.voices,
-        media: champion.media,
-        videoNotes: champion.videoNotes,
-        gifs: champion.gifs,
-      },
     }),
+    ...resolvedTop.map((r, i) =>
+      renderStatsCard({
+        lang,
+        period,
+        groupTitle,
+        fullName: r.name,
+        username: r.username,
+        avatarUrl: r.avatarUrl,
+        rank: i + 1,
+        weekLabel: label,
+        botUsername: bot.botInfo?.username,
+        stats: {
+          messages: r.user.messages,
+          replies: r.user.replies,
+          reactionsGiven: r.user.reactionsGiven,
+          reactionsReceived: r.user.reactionsReceived,
+          stickers: r.user.stickers,
+          voices: r.user.voices,
+          media: r.user.media,
+          videoNotes: r.user.videoNotes,
+          gifs: r.user.gifs,
+        },
+      }),
+    ),
   ]);
+  const championPng = podiumPngs[0];
+  const silverPng = podiumPngs[1];
+  const bronzePng = podiumPngs[2];
 
   // Upload once to the first developer — Telegram returns a file_id we can
   // reuse to deliver to the group later without re-uploading.
@@ -200,26 +235,53 @@ async function processGroup(
   const botUsername = (bot.botInfo?.username ?? "").replace(/^@/, "");
   const groupCaption = captionForPeriod(lang, period, botUsername);
 
-  const leaderboardMsg = await bot.api.sendPhoto(
-    firstDev,
-    new InputFile(leaderboardPng, "leaderboard.png"),
-    { caption: `Preview · ${groupTitle} (leaderboard)` },
-  );
-  const championMsg = await bot.api.sendPhoto(
-    firstDev,
-    new InputFile(championPng, "champion.png"),
-    { caption: `Preview · ${groupTitle} (champion)` },
-  );
+  const uploadPng = async (
+    png: Buffer | undefined,
+    filename: string,
+    caption: string,
+  ): Promise<string | null> => {
+    if (!png) return null;
+    const msg = await bot.api.sendPhoto(
+      firstDev,
+      new InputFile(png, filename),
+      { caption },
+    );
+    return msg.photo?.[msg.photo.length - 1]?.file_id ?? null;
+  };
 
-  const leaderboardFileId =
-    leaderboardMsg.photo?.[leaderboardMsg.photo.length - 1]?.file_id ?? null;
-  const championFileId =
-    championMsg.photo?.[championMsg.photo.length - 1]?.file_id ?? null;
+  const leaderboardFileId = await uploadPng(
+    leaderboardPng,
+    "leaderboard.png",
+    `Preview · ${groupTitle} (leaderboard)`,
+  );
+  const championFileId = await uploadPng(
+    championPng,
+    "champion.png",
+    `Preview · ${groupTitle} (gold #1)`,
+  );
+  const silverFileId = await uploadPng(
+    silverPng,
+    "silver.png",
+    `Preview · ${groupTitle} (silver #2)`,
+  );
+  const bronzeFileId = await uploadPng(
+    bronzePng,
+    "bronze.png",
+    `Preview · ${groupTitle} (bronze #3)`,
+  );
+  const topTenFileId = await uploadPng(
+    topTenPng,
+    "top10.png",
+    `Preview · ${groupTitle} (top 10)`,
+  );
 
   const pendingId = await insertPendingCard({
     chat_id: chat.chat_id,
     leaderboard_file_id: leaderboardFileId,
     champion_file_id: championFileId,
+    silver_file_id: silverFileId,
+    bronze_file_id: bronzeFileId,
+    top_ten_file_id: topTenFileId,
     caption: groupCaption,
     period,
   });

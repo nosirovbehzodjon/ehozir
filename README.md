@@ -26,11 +26,15 @@ A multi-feature Telegram bot for Uzbek community groups built with TypeScript an
 
 ### Useful Content (YouTube)
 - Fetches latest videos from a curated list of YouTube channels via YouTube Data API v3
-- Delivers 5 newest videos per day to subscribed groups
+- Delivers 10 videos per day to subscribed groups
 - Deduplicated by video ID — same video is never sent twice
+- Each video is broadcast at most twice, then pruned (`send_count` cap)
+- Picks are spread across channels (round-robin), so a single channel can't fill a slate
+- Rows older than 365 days are auto-pruned
 - Enable/disable per group with `/foydali` / `/useful` / `/полезное`
 - Configurable delivery hour (default 10:00 Tashkent time, separate from news)
 - Click tracking via Supabase Edge Function
+- Per-channel monthly click stats via `/usefulstats [YYYY-MM]` (developer-only, bot chat)
 - Developer commands: `/addChannel`, `/removeChannel`, `/listChannels`, `/testUseful`
 
 ### NSFW Protection
@@ -151,6 +155,7 @@ npm run build && npm start
 | `/settings` | Configure news delivery times |
 | `/newsstats` | View news click statistics |
 | `/newsstats daryo` | View detailed stats for a source |
+| `/usefulstats [YYYY-MM]` | View useful-content click stats per channel for a month |
 | `/addChannel <url\|@handle\|UC...>` | Add a YouTube channel to the curated list |
 | `/removeChannel <channel_id>` | Deactivate a YouTube channel |
 | `/listChannels` | Show all configured YouTube channels |

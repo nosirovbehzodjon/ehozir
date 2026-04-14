@@ -152,6 +152,12 @@ export type StatsCardData = {
   };
 };
 
+const RANK_THEME: Record<number, { accent: string; footerBorder: string }> = {
+  1: { accent: "#a3e635", footerBorder: "rgba(163,230,53,0.3)" }, // gold-green
+  2: { accent: "#c0c0c0", footerBorder: "rgba(192,192,192,0.3)" }, // silver
+  3: { accent: "#cd7f32", footerBorder: "rgba(205,127,50,0.3)" }, // bronze
+};
+
 export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
   return serialize(async () => {
     const [{ satori, html }, fonts, avatar] = await Promise.all([
@@ -166,6 +172,9 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
         : data.period === "year"
           ? t.yearlyChampion
           : t.weeklyChampion;
+    const theme = RANK_THEME[data.rank] ?? RANK_THEME[1];
+    const accent = theme.accent;
+    const footerBorder = theme.footerBorder;
 
     const s = data.stats;
     const total =
@@ -206,11 +215,11 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
         <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:26px;">
           <div style="display:flex;font-size:22px;letter-spacing:6px;color:#a0a0c0;text-transform:uppercase;margin-bottom:6px;">${escapeHtml(championLabel)}</div>
           <div style="display:flex;font-size:30px;font-weight:900;color:white;margin-bottom:4px;">${escapeHtml(data.groupTitle)}</div>
-          <div style="display:flex;font-size:24px;color:#a3e635;font-weight:700;">${escapeHtml(data.weekLabel)}</div>
+          <div style="display:flex;font-size:24px;color:${accent};font-weight:700;">${escapeHtml(data.weekLabel)}</div>
         </div>
 
         <div style="display:flex;align-items:center;margin-bottom:36px;">
-          <div style="display:flex;width:180px;height:180px;border-radius:28px;border:5px solid #a3e635;overflow:hidden;background:#2a2a4a;flex-shrink:0;">
+          <div style="display:flex;width:180px;height:180px;border-radius:28px;border:5px solid ${accent};overflow:hidden;background:#2a2a4a;flex-shrink:0;">
             ${avatar ? `<img src="${avatar}" width="180" height="180" style="width:180px;height:180px;object-fit:cover;" />` : ""}
           </div>
           <div style="display:flex;flex-direction:column;margin-left:35px;flex:1;">
@@ -218,7 +227,7 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
             ${data.username ? `<div style="display:flex;font-size:24px;color:#a0a0c0;margin-top:6px;">@${escapeHtml(data.username)}</div>` : ""}
             <div style="display:flex;align-items:center;margin-top:14px;">
               <div style="display:flex;font-size:20px;color:#a0a0c0;letter-spacing:2px;text-transform:uppercase;margin-right:14px;">${escapeHtml(t.rank)}</div>
-              <div style="display:flex;font-size:56px;font-weight:900;color:#a3e635;line-height:1;">#${data.rank}</div>
+              <div style="display:flex;font-size:56px;font-weight:900;color:${accent};line-height:1;">#${data.rank}</div>
             </div>
           </div>
         </div>
@@ -227,12 +236,12 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
           ${rows.map((row) => `<div style="display:flex;gap:18px;">${row.map(([l, v]) => statBox(l, v, row.length === 1)).join("")}</div>`).join("")}
         </div>
 
-        <div style="display:flex;justify-content:center;align-items:center;margin-top:30px;padding:22px;border-top:2px solid rgba(163,230,53,0.3);">
+        <div style="display:flex;justify-content:center;align-items:center;margin-top:30px;padding:22px;border-top:2px solid ${footerBorder};">
           <div style="display:flex;font-size:22px;color:#a0a0c0;text-transform:uppercase;letter-spacing:3px;margin-right:18px;">${escapeHtml(t.totalActions)}</div>
-          <div style="display:flex;font-size:44px;font-weight:900;color:#a3e635;">${fmt(total)}</div>
+          <div style="display:flex;font-size:44px;font-weight:900;color:${accent};">${fmt(total)}</div>
         </div>
 
-        ${cardFooter(botHandle, t.cardTagline)}
+        ${cardFooter(botHandle, t.cardTagline, accent)}
       </div>
     `);
 
@@ -253,9 +262,9 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
   });
 }
 
-function cardFooter(botHandle: string, tagline: string): string {
+function cardFooter(botHandle: string, tagline: string, accent: string = "#a3e635"): string {
   return `<div style="display:flex;flex-direction:column;align-items:center;margin-top:auto;padding-top:24px;">
-    ${botHandle ? `<div style="display:flex;font-size:26px;font-weight:900;color:#a3e635;letter-spacing:2px;">@${escapeHtml(botHandle)}</div>` : ""}
+    ${botHandle ? `<div style="display:flex;font-size:26px;font-weight:900;color:${accent};letter-spacing:2px;">@${escapeHtml(botHandle)}</div>` : ""}
     <div style="display:flex;font-size:18px;color:#a0a0c0;margin-top:6px;letter-spacing:1px;">${escapeHtml(tagline)}</div>
   </div>`;
 }
@@ -373,6 +382,105 @@ function winnerRow(
       <div style="display:flex;font-size:30px;font-weight:900;color:white;margin-top:2px;">${escapeHtml(fullName)}</div>
     </div>
     <div style="display:flex;font-size:42px;font-weight:900;color:#a3e635;margin-left:16px;">${fmt(count)}</div>
+  </div>`;
+}
+
+// ---------------------------------------------------------------------------
+
+export type TopTenEntry = {
+  fullName: string;
+  avatarUrl: string;
+  total: number;
+};
+
+export type TopTenCardData = {
+  lang?: Lang;
+  period?: StatsPeriod;
+  groupTitle: string;
+  weekLabel: string;
+  entries: TopTenEntry[];
+  botUsername?: string;
+};
+
+export async function renderTopTenCard(
+  data: TopTenCardData,
+): Promise<Buffer> {
+  return serialize(async () => {
+    const [{ satori, html }, fonts] = await Promise.all([
+      loadModulesOnce(),
+      loadFontsOnce(),
+    ]);
+    const t = translations[data.lang ?? DEFAULT_LANG].statsCard;
+    const title =
+      data.period === "month"
+        ? t.monthlyTopTen
+        : data.period === "year"
+          ? t.yearlyTopTen
+          : t.weeklyTopTen;
+
+    const avatars = await Promise.all(
+      data.entries.map((e) => toDataUrl(e.avatarUrl)),
+    );
+
+    const rowsHtml = data.entries
+      .map((e, i) => topTenRow(i + 1, e.fullName, e.total, avatars[i]))
+      .join("");
+
+    const height = 260 + data.entries.length * 108 + 110;
+    const botHandle = (data.botUsername ?? "").replace(/^@/, "");
+
+    const markup = html(`
+      <div style="display:flex;width:900px;height:${height}px;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);padding:55px;flex-direction:column;font-family:Montserrat;color:white;">
+        <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:36px;">
+          <div style="display:flex;font-size:22px;letter-spacing:6px;color:#a0a0c0;text-transform:uppercase;margin-bottom:10px;">${escapeHtml(title)}</div>
+          <div style="display:flex;font-size:38px;font-weight:900;color:white;margin-bottom:6px;">${escapeHtml(data.groupTitle)}</div>
+          <div style="display:flex;font-size:24px;color:#a3e635;font-weight:700;">${escapeHtml(data.weekLabel)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          ${rowsHtml}
+        </div>
+        ${cardFooter(botHandle, t.cardTagline)}
+      </div>
+    `);
+
+    const svg = await satori(markup as any, {
+      width: 900,
+      height,
+      fonts: [
+        { name: "Montserrat", data: fonts.regular, weight: 400, style: "normal" },
+        { name: "Montserrat", data: fonts.bold, weight: 700, style: "normal" },
+        { name: "Montserrat", data: fonts.bold, weight: 900, style: "normal" },
+      ],
+    });
+
+    const png = new Resvg(svg, { fitTo: { mode: "width", value: 900 } })
+      .render()
+      .asPng();
+    return Buffer.from(png);
+  });
+}
+
+function rankAccent(rank: number): string {
+  if (rank === 1) return "#a3e635";
+  if (rank === 2) return "#c0c0c0";
+  if (rank === 3) return "#cd7f32";
+  return "#6b7280";
+}
+
+function topTenRow(
+  rank: number,
+  fullName: string,
+  total: number,
+  avatar: string,
+): string {
+  const accent = rankAccent(rank);
+  return `<div style="display:flex;align-items:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:14px 22px;">
+    <div style="display:flex;width:56px;font-size:34px;font-weight:900;color:${accent};justify-content:center;">#${rank}</div>
+    <div style="display:flex;width:72px;height:72px;border-radius:14px;border:3px solid ${accent};overflow:hidden;background:#2a2a4a;flex-shrink:0;margin-left:10px;">
+      ${avatar ? `<img src="${avatar}" width="72" height="72" style="width:72px;height:72px;object-fit:cover;" />` : ""}
+    </div>
+    <div style="display:flex;flex:1;margin-left:20px;font-size:28px;font-weight:900;color:white;">${escapeHtml(fullName)}</div>
+    <div style="display:flex;font-size:34px;font-weight:900;color:${accent};margin-left:16px;">${fmt(total)}</div>
   </div>`;
 }
 

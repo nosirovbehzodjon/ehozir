@@ -127,32 +127,44 @@ export function pickWinners(activity: UserActionCounts[]): WinnerRow[] {
   return winners;
 }
 
+function totalActions(u: UserActionCounts): number {
+  return (
+    u.messages +
+    u.replies +
+    u.reactionsGiven +
+    u.reactionsReceived +
+    u.stickers +
+    u.voices +
+    u.media +
+    u.videoNotes +
+    u.gifs
+  );
+}
+
 /**
  * Sum across all users for the champion card (rank #1 = top total actions).
  */
 export function pickChampion(
   activity: UserActionCounts[],
 ): UserActionCounts | null {
-  if (activity.length === 0) return null;
-  let best: UserActionCounts | null = null;
-  let bestTotal = 0;
-  for (const u of activity) {
-    const total =
-      u.messages +
-      u.replies +
-      u.reactionsGiven +
-      u.reactionsReceived +
-      u.stickers +
-      u.voices +
-      u.media +
-      u.videoNotes +
-      u.gifs;
-    if (total > bestTotal) {
-      bestTotal = total;
-      best = u;
-    }
-  }
-  return best;
+  const top = pickTopN(activity, 1);
+  return top[0] ?? null;
+}
+
+/**
+ * Top N users by total actions, sorted descending. Users with zero total
+ * are excluded.
+ */
+export function pickTopN(
+  activity: UserActionCounts[],
+  n: number,
+): UserActionCounts[] {
+  return activity
+    .map((u) => ({ u, t: totalActions(u) }))
+    .filter(({ t }) => t > 0)
+    .sort((a, b) => b.t - a.t)
+    .slice(0, n)
+    .map(({ u }) => u);
 }
 
 type StatRow = {

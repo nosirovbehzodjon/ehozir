@@ -40,7 +40,7 @@ export async function notifyNsfwBan(
   const pct = (confidence * 100).toFixed(1);
 
   const text =
-    `🛡 <b>NSFW Ban</b>\n\n` +
+    `🛡 <b>Sensitive Account Ban</b>\n\n` +
     `👤 <b>${name}</b> (${uname}, <code>${user.id}</code>)\n` +
     `💬 Group: <code>${chatId}</code>\n` +
     `🔍 Reason: <b>${escapeHtml(reason)}</b>\n` +

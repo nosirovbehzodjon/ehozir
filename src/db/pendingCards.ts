@@ -8,6 +8,9 @@ export type PendingCardRow = {
   chat_id: number;
   leaderboard_file_id: string | null;
   champion_file_id: string | null;
+  silver_file_id: string | null;
+  bronze_file_id: string | null;
+  top_ten_file_id: string | null;
   caption: string | null;
   period: StatsPeriod;
   status: PendingCardStatus;
