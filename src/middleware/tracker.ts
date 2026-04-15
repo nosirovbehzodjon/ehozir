@@ -52,13 +52,14 @@ export function registerTracker(bot: Bot) {
   // group_members — `message_reaction` is the only signal we get from them.
   // Requires admin rights on the group and `message_reaction` in
   // allowed_updates (both already set in bot.ts).
-  bot.on("message_reaction", async (ctx) => {
+  bot.on("message_reaction", async (ctx, next) => {
     const chat = ctx.chat;
-    if (chat.type !== "group" && chat.type !== "supergroup") return;
-
-    const user = ctx.messageReaction?.user;
-    if (!user || user.is_bot) return;
-
-    await upsertGroupAndMember(chat, user);
+    if (chat.type === "group" || chat.type === "supergroup") {
+      const user = ctx.messageReaction?.user;
+      if (user && !user.is_bot) {
+        await upsertGroupAndMember(chat, user);
+      }
+    }
+    await next();
   });
 }

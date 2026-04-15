@@ -100,81 +100,75 @@ export function registerStatsLogger(bot: Bot) {
 
   // Identified user reactions. Telegram ONLY delivers this update if the
   // bot is an admin in the group — otherwise the update is silently dropped.
-  bot.on("message_reaction", async (ctx) => {
-    console.log("[statsLogger] message_reaction", {
-      chat: ctx.chat?.id,
-      user: ctx.messageReaction?.user?.id,
-      user_from: ctx.from?.id,
-      old: ctx.messageReaction?.old_reaction?.length,
-      new: ctx.messageReaction?.new_reaction?.length,
-    });
-    console.log("who is who", {
-      giver: ctx.from?.id,
-      reciver: ctx.messageReaction?.user?.id,
-    });
-
+  bot.on("message_reaction", async (ctx, next) => {
     const chat = ctx.chat;
-    if (!chat || (chat.type !== "group" && chat.type !== "supergroup")) return;
-
     const reaction = ctx.messageReaction;
-    if (!reaction) return;
+    if (
+      chat &&
+      (chat.type === "group" || chat.type === "supergroup") &&
+      reaction
+    ) {
+      const oldCount = reaction.old_reaction?.length ?? 0;
+      const newCount = reaction.new_reaction?.length ?? 0;
+      if (newCount > oldCount) {
+        // Reactor: null for anonymous admins / channel-as-user, by design.
+        const reactor = reaction.user?.id ?? null;
 
-    const oldCount = reaction.old_reaction?.length ?? 0;
-    const newCount = reaction.new_reaction?.length ?? 0;
-    if (newCount <= oldCount) return;
+        // Receiver: Telegram doesn't include it in the update, so look up
+        // the author we cached when the original message was seen. Cache
+        // miss (bot restart, message predates bot) → null.
+        const receiver = await lookupAuthor(chat.id, reaction.message_id);
 
-    // Reactor: null for anonymous admins / channel-as-user, by design.
-    const reactor = reaction.user?.id ?? null;
-
-    // Receiver: Telegram doesn't include it in the update, so look up the
-    // author we cached when the original message was seen. Cache miss
-    // (bot restart, message predates bot, very old message) → null.
-    const receiver = await lookupAuthor(chat.id, reaction.message_id);
-
-    const entries: LogEntry[] = [];
-    if (reactor !== null) {
-      entries.push({
-        chat_id: chat.id,
-        user_id: reactor,
-        action_type: "reaction_given",
-      });
+        const entries: LogEntry[] = [];
+        if (reactor !== null) {
+          entries.push({
+            chat_id: chat.id,
+            user_id: reactor,
+            action_type: "reaction_given",
+          });
+        }
+        // Don't credit the bot for receiving reactions on its own posts.
+        if (receiver !== null && receiver !== ctx.me.id) {
+          entries.push({
+            chat_id: chat.id,
+            user_id: receiver,
+            action_type: "reaction_received",
+          });
+        }
+        if (entries.length > 0) await logActions(entries);
+      }
     }
-    // Don't credit the bot for receiving reactions on its own posts.
-    if (receiver !== null && receiver !== ctx.me.id) {
-      entries.push({
-        chat_id: chat.id,
-        user_id: receiver,
-        action_type: "reaction_received",
-      });
-    }
-    if (entries.length > 0) await logActions(entries);
+    await next();
   });
 
   // Anonymous / channel-signed reactions come through message_reaction_count
   // (aggregate counts, no per-user info). Still useful for volume stats.
-  bot.on("message_reaction_count", async (ctx) => {
+  bot.on("message_reaction_count", async (ctx, next) => {
     console.log("[statsLogger] message_reaction_count", {
       chat: ctx.chat?.id,
       reactions: ctx.messageReactionCount?.reactions?.length,
     });
 
     const chat = ctx.chat;
-    if (!chat || (chat.type !== "group" && chat.type !== "supergroup")) return;
-
     const payload = ctx.messageReactionCount;
-    if (!payload) return;
-
-    const total = (payload.reactions ?? []).reduce(
-      (n, r) => n + (r.total_count ?? 0),
-      0,
-    );
-    if (total <= 0) return;
-
-    await logAction({
-      chat_id: chat.id,
-      user_id: null,
-      action_type: "reaction_received",
-    });
+    if (
+      chat &&
+      (chat.type === "group" || chat.type === "supergroup") &&
+      payload
+    ) {
+      const total = (payload.reactions ?? []).reduce(
+        (n, r) => n + (r.total_count ?? 0),
+        0,
+      );
+      if (total > 0) {
+        await logAction({
+          chat_id: chat.id,
+          user_id: null,
+          action_type: "reaction_received",
+        });
+      }
+    }
+    await next();
   });
 }
 
