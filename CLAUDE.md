@@ -34,7 +34,6 @@ src/
   db/
     client.ts             — Supabase client init (service-role, no session persistence)
     groups.ts             — Groups & members DB functions (upsert, query, stats)
-    commands.ts           — Commands table queries (getActiveCommands)
     settings.ts           — Group settings, language & feature toggles (all stored in group_settings)
     users.ts              — Bot users table (private-chat users) + invite points: upsertUser, getUser, setUserLanguage, awardInvitePoints (idempotent per user+chat via user_group_invites)
     botSettings.ts        — Bot-wide settings (news hours, global config)
@@ -96,7 +95,6 @@ Idempotent DDL for Supabase tables. Re-run any time the schema changes — all s
 - `group_members(chat_id FK->groups, user_id, username, first_name, last_name, is_bot, language_code, first_seen, last_seen, PK(chat_id, user_id))`
   - Index: `group_members_chat_id_idx` on `(chat_id)`
   - Trigger: `group_members_count_trg` -> keeps `groups.member_count` accurate.
-- `commands(name PK, description, usage, is_active, created_at)` — command registry (legacy, `/help` now reads from i18n translations).
 - `group_settings(chat_id FK->groups, feature, enabled, value, updated_at, PK(chat_id, feature))` — per-group settings and feature toggles.
   - `feature='dailyNews'` + `enabled=true/false` — toggle daily news delivery.
   - `feature='language'` + `value='uz'/'ru'/'en'` — group language setting.
@@ -168,7 +166,7 @@ Each command has aliases in Uzbek, Russian, and English:
 | `/stats` | `/statistika` | `/статистика` | Show tracked vs total member counts |
 | `/help` | `/yordam` | `/помощь` | List available commands (in group language) |
 | `/news` | `/yangiliklar` | `/новости` | Enable daily news for this group |
-| `/cancelNews` | `/yangiliklar_bekor` | `/отмена_новостей` | Disable daily news |
+| `/news_off` | `/yangiliklar_bekor` | `/отмена_новостей` | Disable daily news |
 | `/useful` | `/foydali` | `/полезное` | Enable daily useful YouTube videos |
 | `/useful_off` | `/foydali_bekor` | `/отмена_полезного` | Disable daily useful videos |
 | `/english` | `/ingliz` | `/английский` | Enable daily English learning videos |

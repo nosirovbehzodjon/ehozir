@@ -86,26 +86,11 @@ after insert or update or delete on public.group_members
 for each row execute function public.group_members_count_trigger();
 
 -- ----------------------------------------------------------------------------
--- Bot commands registry — all commands stored dynamically, not hardcoded.
+-- Legacy commands registry — removed. /help reads from src/i18n/translations.ts,
+-- which is the single source of truth for the command list.
 -- ----------------------------------------------------------------------------
 
-create table if not exists public.commands (
-  name text primary key,
-  description text not null,
-  usage text,
-  is_active boolean not null default true,
-  created_at timestamptz not null default now()
-);
-
--- Seed default commands (idempotent)
--- Note: /help now reads command list from src/i18n/translations.ts per group language.
--- These rows are kept for backwards compatibility but are no longer used by /help.
-insert into public.commands (name, description, usage) values
-  ('hamma',   'Mention all tracked group members',   '/hamma'),
-  ('all',     'Mention all tracked group members',   '/all'),
-  ('stats',   'Show tracked vs total member counts', '/stats'),
-  ('help',    'Show list of available commands',     '/help')
-on conflict (name) do nothing;
+drop table if exists public.commands cascade;
 
 -- ----------------------------------------------------------------------------
 -- Per-group feature settings — toggles for current and future features.
@@ -137,13 +122,6 @@ on conflict (chat_id, feature) do nothing;
 -- Drop legacy news tables (replaced by external_news)
 drop table if exists public.news_clicks;
 drop table if exists public.news;
-
--- Seed news commands (idempotent)
-insert into public.commands (name, description, usage) values
-  ('news',       'Enable daily news for this group',  '/news'),
-  ('cancelNews', 'Disable daily news for this group', '/cancelNews'),
-  ('testNews',   'Send news now (developers only)',   '/testNews')
-on conflict (name) do nothing;
 
 -- ----------------------------------------------------------------------------
 -- Sensitive profile log — flagged NSFW profiles for cross-group recognition.
@@ -724,7 +702,6 @@ alter table public.user_group_invites  enable row level security;
 
 alter table public.groups                enable row level security;
 alter table public.group_members         enable row level security;
-alter table public.commands              enable row level security;
 alter table public.group_settings        enable row level security;
 alter table public.bot_settings          enable row level security;
 alter table public.external_news         enable row level security;

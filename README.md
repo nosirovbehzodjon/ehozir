@@ -19,7 +19,7 @@ A multi-feature Telegram bot for Uzbek community groups built with TypeScript an
 - Fetches latest news from daryo.uz automatically
 - Delivers 8 articles per send to subscribed groups
 - Multiple delivery times per day (default 11:00 and 19:00 Tashkent time)
-- Enable/disable per group with `/news` and `/cancelNews`
+- Enable/disable per group with `/news` and `/news_off`
 - Click tracking via Supabase Edge Function for partner statistics
 - Configurable delivery times via `/settings` (developer-only, bot chat)
 - Per-source click statistics via `/newsstats` (developer-only, bot chat)
@@ -141,7 +141,7 @@ npm run build && npm start
 | `/stats` | `/statistika` | `/статистика` | Member count statistics |
 | `/help` | `/yordam` | `/помощь` | List available commands |
 | `/news` | `/yangiliklar` | `/новости` | Enable daily news |
-| `/cancelNews` | `/yangiliklar_bekor` | `/отмена_новостей` | Disable daily news |
+| `/news_off` | `/yangiliklar_bekor` | `/отмена_новостей` | Disable daily news |
 | `/useful` | `/foydali` | `/полезное` | Enable daily useful YouTube videos |
 | `/useful_off` | `/foydali_bekor` | `/отмена_полезного` | Disable daily useful videos |
 | `/english` | `/ingliz` | `/английский` | Enable daily English learning videos |

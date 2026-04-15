@@ -27,7 +27,7 @@ export function registerNews(bot: Bot) {
 
   onCommand(
     bot,
-    ["cancelNews", "yangiliklar_bekor", "отмена_новостей"],
+    ["news_off", "yangiliklar_bekor", "отмена_новостей"],
     async (ctx) => {
       if (ctx.chat?.type !== "group" && ctx.chat?.type !== "supergroup") {
         await ctx.reply(t("uz").groupOnly);
