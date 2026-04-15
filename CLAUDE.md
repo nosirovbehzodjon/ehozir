@@ -36,6 +36,7 @@ src/
     groups.ts             — Groups & members DB functions (upsert, query, stats)
     commands.ts           — Commands table queries (getActiveCommands)
     settings.ts           — Group settings, language & feature toggles (all stored in group_settings)
+    users.ts              — Bot users table (private-chat users) + invite points: upsertUser, getUser, setUserLanguage, awardInvitePoints (idempotent per user+chat via user_group_invites)
     botSettings.ts        — Bot-wide settings (news hours, global config)
     news.ts               — External news DB functions (insert, click tracking, stats)
     sensitiveLog.ts       — NSFW profile log & check cache (sensitive_profile_log, nsfw_check_log)
@@ -51,6 +52,7 @@ src/
     usefulContent.ts      — /foydali, /useful, /полезное — enable/disable daily useful YouTube videos (group). Also /testUseful (dev group), /addChannel /removeChannel /listChannels (dev bot DM)
     englishContent.ts     — /ingliz, /english, /английский — enable/disable daily English learning videos (group). Also /testEnglish (dev group), /addEnglishChannel /removeEnglishChannel /listEnglishChannels /englishstats (dev bot DM)
     language.ts           — /uz, /ru, /en — change group language (group only)
+    start.ts              — /start — private-chat onboarding: upserts the user into `users`, shows a 3-button language picker (uz/ru/en) on first run, then a welcome with the user's current points, an inline "Add bot to a group" button (t.me/<bot>?startgroup=true), and a Capabilities button that replies with `capabilitiesFull`. Subsequent /start calls skip the picker.
     settings.ts           — /settings — configure news delivery times via inline keyboard (bot chat, developer-only)
     newsStats.ts          — /newsstats — news click statistics per source (bot chat, developer-only)
   middleware/
@@ -107,6 +109,8 @@ Idempotent DDL for Supabase tables. Re-run any time the schema changes — all s
 - `useful_content_clicks(id serial PK, content_id FK->useful_content, chat_id, clicked_at)` — click tracking for useful videos.
 - `sensitive_profile_log(user_id PK, username, first_name, last_name, reason, category, confidence, detected_in_chat_id, created_at)` — flagged NSFW profiles for cross-group instant banning.
 - `nsfw_check_log(user_id PK, checked_at)` — tracks when each user was last NSFW-scanned (24h TTL, production only).
+- `users(user_id PK, username, first_name, last_name, language, points, started_at, last_seen)` — bot users who have DM'd `/start`. Separate from `group_members`: these are direct bot users accruing invite points. `points` is bumped by the `increment_user_points(p_user_id, p_delta)` RPC.
+- `user_group_invites(user_id, chat_id, points_awarded, created_at, PK(user_id, chat_id))` — one row per (inviter, group). PK uniqueness makes `awardInvitePoints` idempotent — removing and re-adding the bot to the same group does not re-credit the inviter.
 
 ### Key Design Decisions
 
@@ -132,6 +136,7 @@ Idempotent DDL for Supabase tables. Re-run any time the schema changes — all s
 - **Categorized help**: `/help` shows commands in categories (group commands, developer group commands, developer bot commands). Developer categories only visible to developers.
 - **Unified group_settings table**: All per-group config (feature toggles, language) stored in `group_settings` table. Boolean features use `enabled` column, string settings use `value` column.
 - **Dual notification formats**: `notifyDevelopers()` for bot errors, `notifyNsfwBan()` for NSFW bans — separate formats so bans don't look like errors.
+- **Bot user onboarding + invite points**: Private-chat `/start` upserts the user into `users`, walks first-timers through a language picker (inline keyboard with callback `start:lang:(uz|ru|en)`), then sends a welcome showing current points and an inline "Add bot to a group" button built from `https://t.me/<botUsername>?startgroup=true` (Telegram's native add-to-group modal — no env var needed, username comes from `ctx.me`). When the bot is subsequently added to a group, `registerGreeting`'s `my_chat_member` handler calls `awardInvitePoints(inviter, chat, 10)` and DMs the inviter a confirmation in their saved language. The unique row in `user_group_invites` guarantees each (user, chat) pair is credited at most once. Points are for a future gift/redemption system — no redemption logic yet.
 - **Path aliases**: `@/*` maps to `src/*` via tsconfig paths. Production build uses `tsc-alias`.
 
 ## Environment Setup
@@ -184,6 +189,12 @@ Each command has aliases in Uzbek, Russian, and English:
 | `/testweeklystats [chat_id]` | Run weekly leaderboard job now (bot DM). With a chat id, runs only for that group; without, runs for all groups |
 | `/testmonthlystats [chat_id]` | Run monthly leaderboard job now (bot DM). Optional chat id targets a single group |
 | `/testyearlystats [chat_id]` | Run yearly leaderboard job now (bot DM). Optional chat id targets a single group |
+
+### Private-chat commands (available to everyone in bot DM)
+
+| Command | Description |
+|---------|-------------|
+| `/start` | Onboards a bot user: picks a language on first run, then shows current invite points and an inline "Add bot to a group" button. Adding the bot to a new group awards the inviter 10 points (toward a future gift system). |
 
 ### Developer-only bot commands (private chat only)
 

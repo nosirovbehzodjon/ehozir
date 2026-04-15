@@ -15,6 +15,7 @@ import { registerUsefulStats } from "@/commands/usefulStats";
 import { registerTestStatsCard } from "@/commands/testStatsCard";
 import { registerWeeklyStats } from "@/commands/weeklyStats";
 import { registerGreeting } from "@/commands/greeting";
+import { registerStart } from "@/commands/start";
 import {
   startWeeklyStatsScheduler,
   startMonthlyStatsScheduler,
@@ -69,6 +70,7 @@ registerUsefulStats(bot);
 registerTestStatsCard(bot);
 registerWeeklyStats(bot);
 registerGreeting(bot);
+registerStart(bot);
 
 // Schedulers
 startDailyNewsScheduler(bot);

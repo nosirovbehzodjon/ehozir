@@ -2,6 +2,9 @@ import { Bot } from "grammy";
 import { onCommand } from "@/i18n";
 import { translations, DEFAULT_LANG } from "@/i18n/translations";
 import { getGroupLanguage } from "@/db/settings";
+import { upsertUser, getUser, awardInvitePoints } from "@/db/users";
+
+const INVITE_POINTS = 10;
 
 const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
   .split(",")
@@ -44,6 +47,36 @@ export function registerGreeting(bot: Bot) {
       await ctx.api.sendMessage(chat.id, translations[lang].greeting);
     } catch (err) {
       console.error("[greeting] failed to send greeting:", err);
+    }
+
+    // Award invite points to the user who added the bot. Skip developers
+    // (they're already excluded above via early return). The unique row
+    // in user_group_invites keeps this idempotent per (inviter, chat).
+    if (upd.from && !upd.from.is_bot) {
+      try {
+        await upsertUser(upd.from);
+        const awarded = await awardInvitePoints(
+          upd.from.id,
+          chat.id,
+          INVITE_POINTS,
+        );
+        if (awarded > 0) {
+          const inviter = await getUser(upd.from.id);
+          const inviterLang = inviter?.language ?? DEFAULT_LANG;
+          const total = inviter?.points ?? awarded;
+          try {
+            await ctx.api.sendMessage(
+              upd.from.id,
+              translations[inviterLang].invitePointsAwarded(awarded, total),
+              { parse_mode: "HTML" },
+            );
+          } catch {
+            // user hasn't started the bot in DM — silently skip notification
+          }
+        }
+      } catch (err) {
+        console.error("[greeting] invite points error:", err);
+      }
     }
   });
 

@@ -150,6 +150,12 @@ npm run build && npm start
 | `/ru` | — | — | Switch to Russian |
 | `/en` | — | — | Switch to English |
 
+### Private chat commands (all users)
+
+| Command | Description |
+|---------|-------------|
+| `/start` | Onboard a new bot user: pick a language, view invite points, and tap a button to add the bot to a group. Adding the bot to a new group earns the inviter 10 points (future gift system). |
+
 ### Developer commands (group)
 
 | Command | Description |
