@@ -1,5 +1,6 @@
 import { supabase } from "./client";
 import type { YoutubeVideo } from "@/services/youtube";
+import type { ChannelCategory } from "./youtubeChannels";
 
 export type UsefulContentRow = {
   id: number;
@@ -12,6 +13,7 @@ export type UsefulContentRow = {
   published_at: string | null;
   fetched_at: string;
   send_count: number;
+  category: ChannelCategory;
 };
 
 export type UsefulContentGroup = {
@@ -21,6 +23,7 @@ export type UsefulContentGroup = {
 
 export async function insertUsefulContent(
   videos: YoutubeVideo[],
+  category: ChannelCategory = "useful",
 ): Promise<UsefulContentRow[]> {
   if (videos.length === 0) return [];
 
@@ -33,6 +36,7 @@ export async function insertUsefulContent(
     link: v.link,
     published_at: v.publishedAt,
     fetched_at: new Date().toISOString(),
+    category,
   }));
 
   const { data, error } = await supabase
@@ -49,10 +53,12 @@ export async function insertUsefulContent(
 
 export async function getLatestUsefulContent(
   limit: number = 5,
+  category: ChannelCategory = "useful",
 ): Promise<UsefulContentRow[]> {
   const { data, error } = await supabase
     .from("useful_content")
     .select("*")
+    .eq("category", category)
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(limit);
   if (error) {
@@ -72,12 +78,12 @@ export async function getLatestUsefulContent(
  */
 export async function pickUsefulContentForDelivery(
   limit: number = 10,
+  category: ChannelCategory = "useful",
 ): Promise<UsefulContentRow[]> {
-  // Fetch a generous candidate pool so the per-channel round-robin has
-  // material to spread across. Order: prefer unsent, then newest.
   const { data, error } = await supabase
     .from("useful_content")
     .select("*")
+    .eq("category", category)
     .lt("send_count", 2)
     .order("send_count", { ascending: true })
     .order("published_at", { ascending: false, nullsFirst: false })
@@ -91,7 +97,6 @@ export async function pickUsefulContentForDelivery(
   const pool = (data ?? []) as UsefulContentRow[];
   if (pool.length === 0) return [];
 
-  // Group candidates by channel preserving the ranked order.
   const byChannel = new Map<string, UsefulContentRow[]>();
   for (const row of pool) {
     const bucket = byChannel.get(row.channel_id) ?? [];
@@ -99,8 +104,6 @@ export async function pickUsefulContentForDelivery(
     byChannel.set(row.channel_id, bucket);
   }
 
-  // Round-robin: one pick per channel per pass until we fill `limit` or
-  // the pool runs dry.
   const picked: UsefulContentRow[] = [];
   while (picked.length < limit) {
     let progressed = false;
@@ -117,9 +120,6 @@ export async function pickUsefulContentForDelivery(
   return picked;
 }
 
-/**
- * Bump send_count for every delivered row.
- */
 export async function incrementUsefulContentSent(
   ids: number[],
 ): Promise<void> {
@@ -128,8 +128,6 @@ export async function incrementUsefulContentSent(
     p_ids: ids,
   });
   if (error) {
-    // RPC may not exist yet on older deployments — fall back to reading
-    // current counts and writing them back.
     const { data: rows } = await supabase
       .from("useful_content")
       .select("id, send_count")
@@ -143,14 +141,13 @@ export async function incrementUsefulContentSent(
   }
 }
 
-/**
- * Remove rows that have reached the delivery cap (send_count >= 2).
- * Returns how many rows were deleted.
- */
-export async function pruneExhaustedUsefulContent(): Promise<number> {
+export async function pruneExhaustedUsefulContent(
+  category: ChannelCategory = "useful",
+): Promise<number> {
   const { data, error } = await supabase
     .from("useful_content")
     .delete()
+    .eq("category", category)
     .gte("send_count", 2)
     .select("id");
   if (error) {
@@ -160,14 +157,14 @@ export async function pruneExhaustedUsefulContent(): Promise<number> {
   return (data ?? []).length;
 }
 
-/**
- * Remove rows older than one year based on `fetched_at`.
- */
-export async function pruneOldUsefulContent(): Promise<number> {
+export async function pruneOldUsefulContent(
+  category: ChannelCategory = "useful",
+): Promise<number> {
   const cutoff = new Date(Date.now() - 365 * 86400000).toISOString();
   const { data, error } = await supabase
     .from("useful_content")
     .delete()
+    .eq("category", category)
     .lt("fetched_at", cutoff)
     .select("id");
   if (error) {
@@ -184,23 +181,19 @@ export type UsefulChannelClicks = {
   clicks: number;
 };
 
-/**
- * Per-channel click totals for a specific calendar month.
- *   `year` — e.g. 2026
- *   `month` — 1..12 (UTC)
- * Counts clicks whose `clicked_at` falls in [start, end), joined back
- * to their useful_content row for the channel grouping.
- */
 export async function getMonthlyUsefulClicksByChannel(
   year: number,
   month: number,
+  category: ChannelCategory = "useful",
 ): Promise<UsefulChannelClicks[]> {
   const start = new Date(Date.UTC(year, month - 1, 1)).toISOString();
   const end = new Date(Date.UTC(year, month, 1)).toISOString();
 
   const { data, error } = await supabase
     .from("useful_content_clicks")
-    .select("content_id, useful_content:content_id(channel_id, channel_title)")
+    .select(
+      "content_id, useful_content:content_id(channel_id, channel_title, category)",
+    )
     .gte("clicked_at", start)
     .lt("clicked_at", end);
 
@@ -214,6 +207,7 @@ export async function getMonthlyUsefulClicksByChannel(
   for (const row of (data ?? []) as any[]) {
     const uc = row.useful_content;
     if (!uc) continue;
+    if (uc.category !== category) continue;
     const key = uc.channel_id as string;
     let entry = agg.get(key);
     if (!entry) {
@@ -264,17 +258,17 @@ export async function recordUsefulContentClick(
   }
 }
 
-export async function getGroupsWithUsefulContentEnabled(): Promise<
-  UsefulContentGroup[]
-> {
+export async function getGroupsWithFeatureEnabled(
+  feature: string,
+): Promise<UsefulContentGroup[]> {
   const { data, error } = await supabase
     .from("group_settings")
     .select("chat_id")
-    .eq("feature", "usefulContent")
+    .eq("feature", feature)
     .eq("enabled", true);
 
   if (error) {
-    console.error("group_settings useful select error:", error.message);
+    console.error("group_settings feature select error:", error.message);
     return [];
   }
 
@@ -296,4 +290,8 @@ export async function getGroupsWithUsefulContentEnabled(): Promise<
     chatId,
     language: langMap.get(chatId) ?? "uz",
   }));
+}
+
+export function getGroupsWithUsefulContentEnabled() {
+  return getGroupsWithFeatureEnabled("usefulContent");
 }

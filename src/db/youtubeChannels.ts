@@ -1,5 +1,7 @@
 import { supabase } from "./client";
 
+export type ChannelCategory = "useful" | "english";
+
 export type YoutubeChannelRow = {
   channel_id: string;
   handle: string | null;
@@ -7,12 +9,18 @@ export type YoutubeChannelRow = {
   uploads_playlist_id: string;
   is_active: boolean;
   added_at: string;
+  category: ChannelCategory;
 };
 
 export async function listYoutubeChannels(
   onlyActive: boolean = true,
+  category: ChannelCategory = "useful",
 ): Promise<YoutubeChannelRow[]> {
-  let query = supabase.from("youtube_channels").select("*").order("added_at");
+  let query = supabase
+    .from("youtube_channels")
+    .select("*")
+    .eq("category", category)
+    .order("added_at");
   if (onlyActive) query = query.eq("is_active", true);
 
   const { data, error } = await query;
@@ -29,11 +37,13 @@ export async function upsertYoutubeChannel(row: {
   title: string;
   uploads_playlist_id: string;
   is_active?: boolean;
+  category?: ChannelCategory;
 }): Promise<void> {
   const { error } = await supabase.from("youtube_channels").upsert(
     {
       ...row,
       is_active: row.is_active ?? true,
+      category: row.category ?? "useful",
     },
     { onConflict: "channel_id" },
   );

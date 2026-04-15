@@ -37,6 +37,13 @@ A multi-feature Telegram bot for Uzbek community groups built with TypeScript an
 - Per-channel monthly click stats via `/usefulstats [YYYY-MM]` (developer-only, bot chat)
 - Developer commands: `/addChannel`, `/removeChannel`, `/listChannels`, `/testUseful`
 
+### English Learning Content (YouTube)
+- Second curated YouTube pipeline dedicated to English learning channels
+- Shares the same tables as useful content, distinguished by a `category` column
+- Separate delivery hour (default 16:00 Tashkent time) so it never collides with news or useful content
+- Enable/disable per group with `/ingliz` / `/english` / `/английский`
+- Developer commands: `/addEnglishChannel`, `/removeEnglishChannel`, `/listEnglishChannels`, `/testEnglish`, `/englishstats [YYYY-MM]`
+
 ### NSFW Protection
 - Automatic detection and banning of users with sensitive content
 - Checks profile photos, personal channel photos, and message photos
@@ -137,6 +144,8 @@ npm run build && npm start
 | `/cancelNews` | `/yangiliklar_bekor` | `/отмена_новостей` | Disable daily news |
 | `/useful` | `/foydali` | `/полезное` | Enable daily useful YouTube videos |
 | `/useful_off` | `/foydali_bekor` | `/отмена_полезного` | Disable daily useful videos |
+| `/english` | `/ingliz` | `/английский` | Enable daily English learning videos |
+| `/english_off` | `/ingliz_bekor` | `/отмена_английского` | Disable daily English learning videos |
 | `/uz` | — | — | Switch to Uzbek |
 | `/ru` | — | — | Switch to Russian |
 | `/en` | — | — | Switch to English |
@@ -147,6 +156,7 @@ npm run build && npm start
 |---------|-------------|
 | `/testNews` | Send news to current group now |
 | `/testUseful` | Send useful YouTube videos to current group now |
+| `/testEnglish` | Send English learning videos to current group now |
 
 ### Developer commands (bot chat only)
 
@@ -156,9 +166,13 @@ npm run build && npm start
 | `/newsstats` | View news click statistics |
 | `/newsstats daryo` | View detailed stats for a source |
 | `/usefulstats [YYYY-MM]` | View useful-content click stats per channel for a month |
-| `/addChannel <url\|@handle\|UC...>` | Add a YouTube channel to the curated list |
-| `/removeChannel <channel_id>` | Deactivate a YouTube channel |
-| `/listChannels` | Show all configured YouTube channels |
+| `/englishstats [YYYY-MM]` | View English-learning click stats per channel for a month |
+| `/addChannel <url\|@handle\|UC...>` | Add a YouTube channel to the useful-content list |
+| `/removeChannel <channel_id>` | Deactivate a useful-content YouTube channel |
+| `/listChannels` | Show all configured useful-content YouTube channels |
+| `/addEnglishChannel <url\|@handle\|UC...>` | Add a YouTube channel to the English-learning list |
+| `/removeEnglishChannel <channel_id>` | Deactivate an English-learning YouTube channel |
+| `/listEnglishChannels` | Show all configured English-learning YouTube channels |
 
 ## Project Structure
 

@@ -39,6 +39,13 @@ type Translation = {
   usefulDisabled: string;
   usefulContentHeader: string;
 
+  // /ingliz — english learning content (YouTube)
+  englishAlreadyEnabled: string;
+  englishEnabled: string;
+  englishNotEnabled: string;
+  englishDisabled: string;
+  englishContentHeader: string;
+
   // /sensitive_content
   sensitiveAlreadyEnabled: string;
   sensitiveEnabled: string;
@@ -137,6 +144,16 @@ export const translations: Record<Lang, Translation> = {
     usefulDisabled: "Foydali kontentlar bu guruh uchun o'chirildi.",
     usefulContentHeader: "🎬 Bugungi foydali videolar:\n\n",
 
+    englishAlreadyEnabled:
+      "Ingliz tilini o'rganish kontenti bu guruhda allaqachon yoqilgan.",
+    englishEnabled:
+      "Ingliz tilini o'rganish kontenti yoqildi! Bu guruh har kuni tanlangan YouTube kanallaridan yangi videolarni oladi.",
+    englishNotEnabled:
+      "Ingliz tilini o'rganish kontenti bu guruhda yoqilmagan.",
+    englishDisabled:
+      "Ingliz tilini o'rganish kontenti bu guruh uchun o'chirildi.",
+    englishContentHeader: "Bugungi ingliz tili videolari:\n\n",
+
     sensitiveAlreadyEnabled:
       "Nomaqbul kontent tekshiruvi bu guruhda allaqachon yoqilgan.",
     sensitiveEnabled:
@@ -203,6 +220,16 @@ export const translations: Record<Lang, Translation> = {
           usage: "/foydali_bekor",
         },
         {
+          name: "ingliz",
+          description: "Ingliz tilini o'rganish videolarini yoqish",
+          usage: "/ingliz",
+        },
+        {
+          name: "ingliz_bekor",
+          description: "Ingliz tilini o'rganish videolarini o'chirish",
+          usage: "/ingliz_bekor",
+        },
+        {
           name: "sensitive_content",
           description: "Nomaqbul kontent tekshiruvini yoqish",
           usage: "/sensitive_content",
@@ -248,19 +275,24 @@ export const translations: Record<Lang, Translation> = {
           usage: "/testUseful",
         },
         {
+          name: "testEnglish",
+          description: "Ingliz tili videolarini hozir yuborish",
+          usage: "/testEnglish",
+        },
+        {
           name: "testweeklystats",
           description: "Haftalik statistika kartasini hozir yaratish",
-          usage: "/testweeklystats",
+          usage: "/testweeklystats [chat_id]",
         },
         {
           name: "testmonthlystats",
           description: "Oylik statistika kartasini hozir yaratish",
-          usage: "/testmonthlystats",
+          usage: "/testmonthlystats [chat_id]",
         },
         {
           name: "testyearlystats",
           description: "Yillik statistika kartasini hozir yaratish",
-          usage: "/testyearlystats",
+          usage: "/testyearlystats [chat_id]",
         },
         {
           name: "teststats",
@@ -312,6 +344,27 @@ export const translations: Record<Lang, Translation> = {
           description: "Sozlangan YouTube kanallar ro'yxati",
           usage: "/listChannels",
         },
+        {
+          name: "englishstats",
+          description:
+            "Ingliz tili kontenti bosish statistikasi (kanal bo'yicha, oylik)",
+          usage: "/englishstats [YYYY-MM]",
+        },
+        {
+          name: "addEnglishChannel",
+          description: "Ingliz tili YouTube kanalini qo'shish",
+          usage: "/addEnglishChannel <url|@handle|UC...>",
+        },
+        {
+          name: "removeEnglishChannel",
+          description: "Ingliz tili YouTube kanalini o'chirish",
+          usage: "/removeEnglishChannel <channel_id>",
+        },
+        {
+          name: "listEnglishChannels",
+          description: "Sozlangan ingliz tili kanallari ro'yxati",
+          usage: "/listEnglishChannels",
+        },
       ],
     },
 
@@ -355,9 +408,9 @@ export const translations: Record<Lang, Translation> = {
     },
 
     greeting:
-      "Assalomu alaykum, aziz do'stlar! 👋\n\nMen guruhingizga qo'shilganimdan xursandman. Men — ko'p vazifali botman: har kuni qiziqarli yangiliklar va foydali YouTube videolarini yetkazib beraman, nomaqbul kontentni avtomatik aniqlayman, va eng muhimi — guruh a'zolarining haftalik, oylik va yillik faolliklarini kuzatib, eng faol a'zolarni aniqlayman 🏆\n\nTo'liq imkoniyatlarim haqida ma'lumot olish uchun /imkoniyatlarim buyrug'ini bosing.",
+      "Assalomu alaykum, aziz do'stlar! 👋\n\nMen guruhingizga qo'shilganimdan xursandman. Men — ko'p vazifali botman: har kuni qiziqarli yangiliklar, foydali YouTube videolarini va ingliz tilini o'rganish videolarini yetkazib beraman, nomaqbul kontentni avtomatik aniqlayman, va eng muhimi — guruh a'zolarining haftalik, oylik va yillik faolliklarini kuzatib, eng faol a'zolarni aniqlayman 🏆\n\nTo'liq imkoniyatlarim haqida ma'lumot olish uchun /imkoniyatlarim buyrug'ini bosing.",
     capabilitiesFull:
-      "🤖 <b>Mening imkoniyatlarim</b>\n\n<b>📊 Faollik statistikasi</b>\n• Haftalik, oylik va yillik faollikni avtomatik kuzataman\n• Xabarlar, javoblar, stikerlar, ovozli xabarlar, doira videolar, gif va mediani hisoblayman\n• Har hafta, har oy va har yil eng faol a'zolar kartasini yarataman\n• Eng ko'p yozgan, javob bergan, stiker yuborgan va media yuborganlarni aniqlayman\n\n<b>📰 Kundalik yangiliklar</b>\n• daryo.uz saytidan eng so'nggi yangiliklarni olib, kuniga bir necha marta guruhga yuboraman\n• /yangiliklar — yangiliklarni yoqish\n• /yangiliklar_bekor — o'chirish\n\n<b>🎬 Foydali kontentlar</b>\n• Tanlangan YouTube kanallaridan har kuni eng so'nggi 10 ta foydali videoni yuboraman\n• /foydali — yoqish\n• /foydali_bekor — o'chirish\n\n<b>🛡 Nomaqbul kontent himoyasi (ixtiyoriy)</b>\n• Profil rasmlari, kanal rasmlari va xabardagi rasmlarni avtomatik tekshiraman\n• Nomaqbul kontent aniqlansa, foydalanuvchini avtomatik bloklayman\n• Bir guruhda aniqlangan foydalanuvchi boshqa guruhlarda ham bloklanadi\n• /sensitive_content — yoqish (standart holatda o'chirilgan)\n• /sensitive_content_off — o'chirish\n\n<b>👥 A'zolar bilan ishlash</b>\n• /hamma — barcha a'zolarni eslatish\n• /statistika — guruh a'zolari soni\n\n<b>🌐 Ko'p tillilik</b>\n• O'zbek, rus va ingliz tillarini qo'llab-quvvatlayman\n• /uz /ru /en orqali tilni o'zgartirish mumkin\n\n<b>⭐ Adminlik berilsa nimalar qilaman?</b>\n• <b>Reaksiyalarni kuzataman</b> — eng ko'p reaksiya qo'ygan va eng ko'p reaksiya olgan a'zolarni aniqlayman (bularsiz reaksiya statistikasi ishlamaydi!)\n• <b>Nomaqbul foydalanuvchilarni avtomatik bloklayman</b> — adminliksiz bloklash imkonsiz\n• <b>Barcha a'zolarni kuzataman</b> — yangi qo'shilganlarni avtomatik qayd qilaman\n• <b>Nomaqbul rasmlarni o'chiraman</b> — guruhni toza tutaman\n\n💡 To'liq imkoniyatlardan foydalanish uchun botni adminga qo'shing!",
+      "🤖 <b>Mening imkoniyatlarim</b>\n\n<b>📊 Faollik statistikasi</b>\n• Haftalik, oylik va yillik faollikni avtomatik kuzataman\n• Xabarlar, javoblar, stikerlar, ovozli xabarlar, doira videolar, gif va mediani hisoblayman\n• Har hafta, har oy va har yil eng faol a'zolar kartasini yarataman\n• Eng ko'p yozgan, javob bergan, stiker yuborgan va media yuborganlarni aniqlayman\n\n<b>📰 Kundalik yangiliklar</b>\n• daryo.uz saytidan eng so'nggi yangiliklarni olib, kuniga bir necha marta guruhga yuboraman\n• /yangiliklar — yangiliklarni yoqish\n• /yangiliklar_bekor — o'chirish\n\n<b>🎬 Foydali kontentlar</b>\n• Tanlangan YouTube kanallaridan har kuni eng so'nggi 10 ta foydali videoni yuboraman\n• /foydali — yoqish\n• /foydali_bekor — o'chirish\n\n<b>🇬🇧 Ingliz tilini o'rganish</b>\n• Tanlangan YouTube kanallaridan har kuni ingliz tilini o'rganish videolarini yuboraman\n• /ingliz — yoqish\n• /ingliz_bekor — o'chirish\n\n<b>🛡 Nomaqbul kontent himoyasi (ixtiyoriy)</b>\n• Profil rasmlari, kanal rasmlari va xabardagi rasmlarni avtomatik tekshiraman\n• Nomaqbul kontent aniqlansa, foydalanuvchini avtomatik bloklayman\n• Bir guruhda aniqlangan foydalanuvchi boshqa guruhlarda ham bloklanadi\n• /sensitive_content — yoqish (standart holatda o'chirilgan)\n• /sensitive_content_off — o'chirish\n\n<b>👥 A'zolar bilan ishlash</b>\n• /hamma — barcha a'zolarni eslatish\n• /statistika — guruh a'zolari soni\n\n<b>🌐 Ko'p tillilik</b>\n• O'zbek, rus va ingliz tillarini qo'llab-quvvatlayman\n• /uz /ru /en orqali tilni o'zgartirish mumkin\n\n<b>⭐ Adminlik berilsa nimalar qilaman?</b>\n• <b>Reaksiyalarni kuzataman</b> — eng ko'p reaksiya qo'ygan va eng ko'p reaksiya olgan a'zolarni aniqlayman (bularsiz reaksiya statistikasi ishlamaydi!)\n• <b>Nomaqbul foydalanuvchilarni avtomatik bloklayman</b> — adminliksiz bloklash imkonsiz\n• <b>Barcha a'zolarni kuzataman</b> — yangi qo'shilganlarni avtomatik qayd qilaman\n• <b>Nomaqbul rasmlarni o'chiraman</b> — guruhni toza tutaman\n\n💡 To'liq imkoniyatlardan foydalanish uchun botni adminga qo'shing!",
   },
 
   ru: {
@@ -383,6 +436,16 @@ export const translations: Record<Lang, Translation> = {
     usefulNotEnabled: "Полезный контент не включён для этой группы.",
     usefulDisabled: "Полезный контент отключён для этой группы.",
     usefulContentHeader: "🎬 Полезные видео дня:\n\n",
+
+    englishAlreadyEnabled:
+      "Контент для изучения английского уже включён для этой группы.",
+    englishEnabled:
+      "Контент для изучения английского включён! Эта группа будет ежедневно получать видео с выбранных YouTube-каналов.",
+    englishNotEnabled:
+      "Контент для изучения английского не включён для этой группы.",
+    englishDisabled:
+      "Контент для изучения английского отключён для этой группы.",
+    englishContentHeader: "Видео для изучения английского:\n\n",
 
     sensitiveAlreadyEnabled:
       "Проверка неприемлемого контента уже включена для этой группы.",
@@ -452,6 +515,16 @@ export const translations: Record<Lang, Translation> = {
           usage: "/отмена_полезного",
         },
         {
+          name: "английский",
+          description: "Включить видео для изучения английского",
+          usage: "/английский",
+        },
+        {
+          name: "отмена_английского",
+          description: "Отключить видео для изучения английского",
+          usage: "/отмена_английского",
+        },
+        {
           name: "sensitive_content",
           description: "Включить проверку неприемлемого контента",
           usage: "/sensitive_content",
@@ -485,19 +558,24 @@ export const translations: Record<Lang, Translation> = {
           usage: "/testUseful",
         },
         {
+          name: "testEnglish",
+          description: "Отправить видео для изучения английского сейчас",
+          usage: "/testEnglish",
+        },
+        {
           name: "testweeklystats",
           description: "Сгенерировать недельную карточку статистики сейчас",
-          usage: "/testweeklystats",
+          usage: "/testweeklystats [chat_id]",
         },
         {
           name: "testmonthlystats",
           description: "Сгенерировать месячную карточку статистики сейчас",
-          usage: "/testmonthlystats",
+          usage: "/testmonthlystats [chat_id]",
         },
         {
           name: "testyearlystats",
           description: "Сгенерировать годовую карточку статистики сейчас",
-          usage: "/testyearlystats",
+          usage: "/testyearlystats [chat_id]",
         },
         {
           name: "teststats",
@@ -549,6 +627,27 @@ export const translations: Record<Lang, Translation> = {
           description: "Список настроенных YouTube-каналов",
           usage: "/listChannels",
         },
+        {
+          name: "englishstats",
+          description:
+            "Статистика кликов по английскому контенту (по каналам, за месяц)",
+          usage: "/englishstats [YYYY-MM]",
+        },
+        {
+          name: "addEnglishChannel",
+          description: "Добавить YouTube-канал для английского",
+          usage: "/addEnglishChannel <url|@handle|UC...>",
+        },
+        {
+          name: "removeEnglishChannel",
+          description: "Убрать YouTube-канал для английского",
+          usage: "/removeEnglishChannel <channel_id>",
+        },
+        {
+          name: "listEnglishChannels",
+          description: "Список каналов для изучения английского",
+          usage: "/listEnglishChannels",
+        },
       ],
     },
 
@@ -592,9 +691,9 @@ export const translations: Record<Lang, Translation> = {
     },
 
     greeting:
-      "Привет, друзья! 👋\n\nРад присоединиться к вашей группе. Я — многофункциональный бот: доставляю свежие новости и полезные YouTube-видео каждый день, автоматически определяю неприемлемый контент, и самое главное — отслеживаю недельную, месячную и годовую активность участников, чтобы определять самых активных 🏆\n\nЧтобы узнать обо всех моих возможностях, нажмите /capabilities.",
+      "Привет, друзья! 👋\n\nРад присоединиться к вашей группе. Я — многофункциональный бот: доставляю свежие новости, полезные YouTube-видео и видео для изучения английского каждый день, автоматически определяю неприемлемый контент, и самое главное — отслеживаю недельную, месячную и годовую активность участников, чтобы определять самых активных 🏆\n\nЧтобы узнать обо всех моих возможностях, нажмите /capabilities.",
     capabilitiesFull:
-      "🤖 <b>Мои возможности</b>\n\n<b>📊 Статистика активности</b>\n• Автоматически отслеживаю недельную, месячную и годовую активность\n• Считаю сообщения, ответы, стикеры, голосовые, кружочки, гифки и медиа\n• Каждую неделю, каждый месяц и каждый год создаю карточку самых активных участников\n• Определяю топ авторов, ответчиков, отправителей стикеров и медиа\n\n<b>📰 Ежедневные новости</b>\n• Беру последние новости с daryo.uz и отправляю в группу несколько раз в день\n• /новости — включить\n• /отмена_новостей — выключить\n\n<b>🎬 Полезный контент</b>\n• Каждый день отправляю 10 свежих видео с выбранных YouTube-каналов\n• /полезное — включить\n• /отмена_полезного — выключить\n\n<b>🛡 Защита от неприемлемого контента (опционально)</b>\n• Автоматически проверяю фото профиля, фото каналов и фото в сообщениях\n• При обнаружении неприемлемого контента — автоматический бан\n• Пользователь, заблокированный в одной группе, блокируется во всех\n• /sensitive_content — включить (по умолчанию выключено)\n• /sensitive_content_off — выключить\n\n<b>👥 Работа с участниками</b>\n• /все — упомянуть всех\n• /статистика — количество участников\n\n<b>🌐 Мультиязычность</b>\n• Поддерживаю узбекский, русский и английский\n• Смена языка: /uz /ru /en\n\n<b>⭐ Что я могу с правами администратора?</b>\n• <b>Отслеживаю реакции</b> — определяю тех, кто ставит и получает больше всех реакций (без этого статистика реакций не работает!)\n• <b>Автоматически баню неприемлемых пользователей</b> — без админки бан невозможен\n• <b>Отслеживаю всех участников</b> — автоматически регистрирую новоприбывших\n• <b>Удаляю неприемлемые фото</b> — держу группу чистой\n\n💡 Дайте боту права администратора, чтобы использовать все возможности!",
+      "🤖 <b>Мои возможности</b>\n\n<b>📊 Статистика активности</b>\n• Автоматически отслеживаю недельную, месячную и годовую активность\n• Считаю сообщения, ответы, стикеры, голосовые, кружочки, гифки и медиа\n• Каждую неделю, каждый месяц и каждый год создаю карточку самых активных участников\n• Определяю топ авторов, ответчиков, отправителей стикеров и медиа\n\n<b>📰 Ежедневные новости</b>\n• Беру последние новости с daryo.uz и отправляю в группу несколько раз в день\n• /новости — включить\n• /отмена_новостей — выключить\n\n<b>🎬 Полезный контент</b>\n• Каждый день отправляю 10 свежих видео с выбранных YouTube-каналов\n• /полезное — включить\n• /отмена_полезного — выключить\n\n<b>🇬🇧 Изучение английского</b>\n• Каждый день отправляю видео с выбранных YouTube-каналов для изучения английского\n• /английский — включить\n• /отмена_английского — выключить\n\n<b>🛡 Защита от неприемлемого контента (опционально)</b>\n• Автоматически проверяю фото профиля, фото каналов и фото в сообщениях\n• При обнаружении неприемлемого контента — автоматический бан\n• Пользователь, заблокированный в одной группе, блокируется во всех\n• /sensitive_content — включить (по умолчанию выключено)\n• /sensitive_content_off — выключить\n\n<b>👥 Работа с участниками</b>\n• /все — упомянуть всех\n• /статистика — количество участников\n\n<b>🌐 Мультиязычность</b>\n• Поддерживаю узбекский, русский и английский\n• Смена языка: /uz /ru /en\n\n<b>⭐ Что я могу с правами администратора?</b>\n• <b>Отслеживаю реакции</b> — определяю тех, кто ставит и получает больше всех реакций (без этого статистика реакций не работает!)\n• <b>Автоматически баню неприемлемых пользователей</b> — без админки бан невозможен\n• <b>Отслеживаю всех участников</b> — автоматически регистрирую новоприбывших\n• <b>Удаляю неприемлемые фото</b> — держу группу чистой\n\n💡 Дайте боту права администратора, чтобы использовать все возможности!",
   },
 
   en: {
@@ -619,6 +718,15 @@ export const translations: Record<Lang, Translation> = {
     usefulNotEnabled: "Useful content is not enabled for this group.",
     usefulDisabled: "Useful content disabled for this group.",
     usefulContentHeader: "🎬 Today's useful videos:\n\n",
+
+    englishAlreadyEnabled:
+      "English learning content is already enabled for this group.",
+    englishEnabled:
+      "English learning content enabled! This group will receive videos from curated YouTube channels every day.",
+    englishNotEnabled:
+      "English learning content is not enabled for this group.",
+    englishDisabled: "English learning content disabled for this group.",
+    englishContentHeader: "Today's English learning videos:\n\n",
 
     sensitiveAlreadyEnabled:
       "Sensitive content check is already enabled for this group.",
@@ -685,6 +793,16 @@ export const translations: Record<Lang, Translation> = {
           usage: "/useful_off",
         },
         {
+          name: "english",
+          description: "Enable daily English learning videos",
+          usage: "/english",
+        },
+        {
+          name: "english_off",
+          description: "Disable daily English learning videos",
+          usage: "/english_off",
+        },
+        {
           name: "sensitive_content",
           description: "Enable sensitive content scanning",
           usage: "/sensitive_content",
@@ -714,19 +832,24 @@ export const translations: Record<Lang, Translation> = {
           usage: "/testUseful",
         },
         {
+          name: "testEnglish",
+          description: "Send English learning videos now",
+          usage: "/testEnglish",
+        },
+        {
           name: "testweeklystats",
           description: "Generate weekly stats card now",
-          usage: "/testweeklystats",
+          usage: "/testweeklystats [chat_id]",
         },
         {
           name: "testmonthlystats",
           description: "Generate monthly stats card now",
-          usage: "/testmonthlystats",
+          usage: "/testmonthlystats [chat_id]",
         },
         {
           name: "testyearlystats",
           description: "Generate yearly stats card now",
-          usage: "/testyearlystats",
+          usage: "/testyearlystats [chat_id]",
         },
         {
           name: "teststats",
@@ -778,6 +901,27 @@ export const translations: Record<Lang, Translation> = {
           description: "List configured YouTube channels",
           usage: "/listChannels",
         },
+        {
+          name: "englishstats",
+          description:
+            "English content click stats (per channel, monthly)",
+          usage: "/englishstats [YYYY-MM]",
+        },
+        {
+          name: "addEnglishChannel",
+          description: "Add an English-learning YouTube channel",
+          usage: "/addEnglishChannel <url|@handle|UC...>",
+        },
+        {
+          name: "removeEnglishChannel",
+          description: "Deactivate an English-learning YouTube channel",
+          usage: "/removeEnglishChannel <channel_id>",
+        },
+        {
+          name: "listEnglishChannels",
+          description: "List configured English-learning YouTube channels",
+          usage: "/listEnglishChannels",
+        },
       ],
     },
 
@@ -821,8 +965,8 @@ export const translations: Record<Lang, Translation> = {
     },
 
     greeting:
-      "Hi everyone! 👋\n\nHappy to join your group. I'm a multi-purpose bot: I deliver fresh news and useful YouTube videos every day, automatically detect inappropriate content, and most importantly — I track weekly, monthly and yearly member activity to highlight your most active members 🏆\n\nTap /capabilities to see everything I can do.",
+      "Hi everyone! 👋\n\nHappy to join your group. I'm a multi-purpose bot: I deliver fresh news, useful YouTube videos and English learning videos every day, automatically detect inappropriate content, and most importantly — I track weekly, monthly and yearly member activity to highlight your most active members 🏆\n\nTap /capabilities to see everything I can do.",
     capabilitiesFull:
-      "🤖 <b>What I can do</b>\n\n<b>📊 Activity stats</b>\n• Automatically track weekly, monthly and yearly activity\n• Count messages, replies, stickers, voice messages, video notes, GIFs and media\n• Generate a top-members card every week, every month and every year\n• Identify top messagers, repliers, sticker senders and media senders\n\n<b>📰 Daily news</b>\n• Fetch the latest news from daryo.uz and deliver it to the group several times a day\n• /news — enable\n• /cancelNews — disable\n\n<b>🎬 Useful content</b>\n• Deliver 10 fresh videos from curated YouTube channels every day\n• /useful — enable\n• /useful_off — disable\n\n<b>🛡 Content protection (opt-in)</b>\n• Automatically scan profile photos, channel photos and in-message photos\n• Auto-ban users posting inappropriate content\n• A user flagged in one group is banned in every group\n• /sensitive_content — enable (off by default)\n• /sensitive_content_off — disable\n\n<b>👥 Member tools</b>\n• /all — mention every tracked member\n• /stats — group member counts\n\n<b>🌐 Multi-language</b>\n• Full Uzbek, Russian and English support\n• Change language with /uz /ru /en\n\n<b>⭐ What can I do with admin rights?</b>\n• <b>Track reactions</b> — identify who gives and receives the most reactions (reaction stats do not work without this!)\n• <b>Auto-ban flagged users</b> — banning is impossible without admin\n• <b>Track every member</b> — automatically register new joiners\n• <b>Delete inappropriate photos</b> — keep the group clean\n\n💡 Grant admin rights to unlock everything!",
+      "🤖 <b>What I can do</b>\n\n<b>📊 Activity stats</b>\n• Automatically track weekly, monthly and yearly activity\n• Count messages, replies, stickers, voice messages, video notes, GIFs and media\n• Generate a top-members card every week, every month and every year\n• Identify top messagers, repliers, sticker senders and media senders\n\n<b>📰 Daily news</b>\n• Fetch the latest news from daryo.uz and deliver it to the group several times a day\n• /news — enable\n• /cancelNews — disable\n\n<b>🎬 Useful content</b>\n• Deliver 10 fresh videos from curated YouTube channels every day\n• /useful — enable\n• /useful_off — disable\n\n<b>🇬🇧 English learning</b>\n• Deliver curated English learning videos from YouTube every day\n• /english — enable\n• /english_off — disable\n\n<b>🛡 Content protection (opt-in)</b>\n• Automatically scan profile photos, channel photos and in-message photos\n• Auto-ban users posting inappropriate content\n• A user flagged in one group is banned in every group\n• /sensitive_content — enable (off by default)\n• /sensitive_content_off — disable\n\n<b>👥 Member tools</b>\n• /all — mention every tracked member\n• /stats — group member counts\n\n<b>🌐 Multi-language</b>\n• Full Uzbek, Russian and English support\n• Change language with /uz /ru /en\n\n<b>⭐ What can I do with admin rights?</b>\n• <b>Track reactions</b> — identify who gives and receives the most reactions (reaction stats do not work without this!)\n• <b>Auto-ban flagged users</b> — banning is impossible without admin\n• <b>Track every member</b> — automatically register new joiners\n• <b>Delete inappropriate photos</b> — keep the group clean\n\n💡 Grant admin rights to unlock everything!",
   },
 };

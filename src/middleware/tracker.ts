@@ -46,4 +46,19 @@ export function registerTracker(bot: Bot) {
       await upsertGroupAndMember(chat, user);
     }
   });
+
+  // When a user reacts to a message. Silent members who only react to others'
+  // posts (no messages of their own) would otherwise never land in
+  // group_members — `message_reaction` is the only signal we get from them.
+  // Requires admin rights on the group and `message_reaction` in
+  // allowed_updates (both already set in bot.ts).
+  bot.on("message_reaction", async (ctx) => {
+    const chat = ctx.chat;
+    if (chat.type !== "group" && chat.type !== "supergroup") return;
+
+    const user = ctx.messageReaction?.user;
+    if (!user || user.is_bot) return;
+
+    await upsertGroupAndMember(chat, user);
+  });
 }

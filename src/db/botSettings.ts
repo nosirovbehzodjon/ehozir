@@ -78,3 +78,17 @@ export async function setUsefulContentHours(hours: number[]): Promise<void> {
   const sorted = [...hours].sort((a, b) => a - b);
   await setBotSetting("useful_content_hours", sorted.join(","));
 }
+
+export async function getEnglishContentHours(): Promise<number[]> {
+  const value = await getBotSetting("english_content_hours");
+  if (!value) return [16];
+  return value
+    .split(",")
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((h) => !isNaN(h) && h >= 0 && h <= 23);
+}
+
+export async function setEnglishContentHours(hours: number[]): Promise<void> {
+  const sorted = [...hours].sort((a, b) => a - b);
+  await setBotSetting("english_content_hours", sorted.join(","));
+}

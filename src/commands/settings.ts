@@ -4,6 +4,8 @@ import {
   setNewsHours,
   getUsefulContentHours,
   setUsefulContentHours,
+  getEnglishContentHours,
+  setEnglishContentHours,
 } from "@/db/botSettings";
 
 const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
@@ -16,14 +18,25 @@ function isDeveloper(userId: number): boolean {
   return DEVELOPER_IDS.includes(userId);
 }
 
-type Section = "news" | "useful";
+type Section = "news" | "useful" | "english";
+
+function togglePrefix(section: Section): string {
+  switch (section) {
+    case "news":
+      return "news_hours_toggle";
+    case "useful":
+      return "useful_hours_toggle";
+    case "english":
+      return "english_hours_toggle";
+  }
+}
 
 function buildHoursKeyboard(
   section: Section,
   activeHours: number[],
 ): InlineKeyboard {
   const keyboard = new InlineKeyboard();
-  const prefix = section === "news" ? "news_hours_toggle" : "useful_hours_toggle";
+  const prefix = togglePrefix(section);
   for (let h = 6; h <= 21; h++) {
     const isActive = activeHours.includes(h);
     const label = isActive
@@ -52,17 +65,26 @@ async function buildSettingsMessage(
       keyboard: buildHoursKeyboard("news", hours),
     };
   }
-  const hours = await getUsefulContentHours();
+  if (section === "useful") {
+    const hours = await getUsefulContentHours();
+    return {
+      text: `🎬 Useful content (YouTube)\n\nActive hours: ${formatActiveHours(hours)} (Tashkent)\n\nTap to toggle hours on/off.`,
+      keyboard: buildHoursKeyboard("useful", hours),
+    };
+  }
+  const hours = await getEnglishContentHours();
   return {
-    text: `🎬 Useful content (YouTube)\n\nActive hours: ${formatActiveHours(hours)} (Tashkent)\n\nTap to toggle hours on/off.`,
-    keyboard: buildHoursKeyboard("useful", hours),
+    text: `🇬🇧 English learning content\n\nActive hours: ${formatActiveHours(hours)} (Tashkent)\n\nTap to toggle hours on/off.`,
+    keyboard: buildHoursKeyboard("english", hours),
   };
 }
 
 function buildSectionPicker(): InlineKeyboard {
   return new InlineKeyboard()
     .text("📰 Daily news", "time_section:news")
-    .text("🎬 Useful content", "time_section:useful");
+    .text("🎬 Useful content", "time_section:useful")
+    .row()
+    .text("🇬🇧 English learning", "time_section:english");
 }
 
 export function registerSettings(bot: Bot) {
@@ -76,7 +98,7 @@ export function registerSettings(bot: Bot) {
     );
   });
 
-  bot.callbackQuery(/^time_section:(news|useful)$/, async (ctx) => {
+  bot.callbackQuery(/^time_section:(news|useful|english)$/, async (ctx) => {
     if (!ctx.from || !isDeveloper(ctx.from.id)) {
       await ctx.answerCallbackQuery({ text: "Developers only." });
       return;
@@ -123,7 +145,12 @@ export function registerSettings(bot: Bot) {
     const { text, keyboard } = await buildSettingsMessage(section);
     await ctx.editMessageText(text, { reply_markup: keyboard });
 
-    const label = section === "news" ? "News" : "Useful content";
+    const label =
+      section === "news"
+        ? "News"
+        : section === "useful"
+          ? "Useful content"
+          : "English content";
     await ctx.answerCallbackQuery({
       text: `${label}: ${formatActiveHours(updated)}`,
     });
@@ -141,6 +168,17 @@ export function registerSettings(bot: Bot) {
       hour,
       getUsefulContentHours,
       setUsefulContentHours,
+      ctx,
+    );
+  });
+
+  bot.callbackQuery(/^english_hours_toggle:(\d+)$/, async (ctx) => {
+    const hour = parseInt((ctx.match as RegExpMatchArray)[1], 10);
+    await handleToggle(
+      "english",
+      hour,
+      getEnglishContentHours,
+      setEnglishContentHours,
       ctx,
     );
   });

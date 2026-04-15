@@ -313,6 +313,7 @@ function escapeHtml(s: string): string {
 export async function runStatsNow(
   bot: Bot,
   period: StatsPeriod = "week",
+  chatId?: number,
 ): Promise<void> {
   // Monthly/yearly need aggregate tables populated before reading. Weekly
   // reads raw logs and needs no pre-aggregation.
@@ -325,8 +326,19 @@ export async function runStatsNow(
     await runAggregation("yearly");
   }
 
-  const groups = await listAllGroups();
-  console.log(`[${period}Stats] processing ${groups.length} groups`);
+  const allGroups = await listAllGroups();
+  const groups =
+    chatId !== undefined
+      ? allGroups.filter((g) => g.chat_id === chatId)
+      : allGroups;
+
+  if (chatId !== undefined && groups.length === 0) {
+    throw new Error(`group ${chatId} not found`);
+  }
+
+  console.log(
+    `[${period}Stats] processing ${groups.length} group(s)${chatId !== undefined ? ` (filtered to ${chatId})` : ""}`,
+  );
   for (const g of groups) {
     try {
       await processGroup(bot, g, period);
@@ -339,16 +351,25 @@ export async function runStatsNow(
   }
 }
 
-export async function runWeeklyStatsNow(bot: Bot): Promise<void> {
-  return runStatsNow(bot, "week");
+export async function runWeeklyStatsNow(
+  bot: Bot,
+  chatId?: number,
+): Promise<void> {
+  return runStatsNow(bot, "week", chatId);
 }
 
-export async function runMonthlyStatsNow(bot: Bot): Promise<void> {
-  return runStatsNow(bot, "month");
+export async function runMonthlyStatsNow(
+  bot: Bot,
+  chatId?: number,
+): Promise<void> {
+  return runStatsNow(bot, "month", chatId);
 }
 
-export async function runYearlyStatsNow(bot: Bot): Promise<void> {
-  return runStatsNow(bot, "year");
+export async function runYearlyStatsNow(
+  bot: Bot,
+  chatId?: number,
+): Promise<void> {
+  return runStatsNow(bot, "year", chatId);
 }
 
 export function startWeeklyStatsScheduler(bot: Bot): void {

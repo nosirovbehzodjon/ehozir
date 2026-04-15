@@ -639,6 +639,28 @@ insert into public.bot_settings (key, value) values
   ('useful_content_hours', '10')
 on conflict (key) do nothing;
 
+-- ----------------------------------------------------------------------------
+-- English learning content — same tables as useful content, distinguished by
+-- `category` column. Seeded default delivery hour is 16:00 Tashkent, separate
+-- from news and useful content to avoid spam.
+-- ----------------------------------------------------------------------------
+
+alter table public.youtube_channels
+  add column if not exists category text not null default 'useful';
+
+alter table public.useful_content
+  add column if not exists category text not null default 'useful';
+
+create index if not exists youtube_channels_category_active_idx
+  on public.youtube_channels (category, is_active);
+
+create index if not exists useful_content_category_idx
+  on public.useful_content (category, send_count, published_at desc);
+
+insert into public.bot_settings (key, value) values
+  ('english_content_hours', '16')
+on conflict (key) do nothing;
+
 -- Seed the initial curated channels. uploads_playlist_id is a placeholder;
 -- the bot resolves it on first run via /addChannel or auto-resolves in the
 -- scheduler. Rows are kept even if placeholder so dev can see them in /listChannels.

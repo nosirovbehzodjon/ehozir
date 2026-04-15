@@ -17,16 +17,44 @@ function isDeveloper(userId: number): boolean {
   return DEVELOPER_IDS.includes(userId);
 }
 
+// Parse an optional chat id argument: "/testweeklystats -1001234567890".
+// Returns undefined for no arg, or throws for a malformed one.
+function parseChatIdArg(raw: string | undefined): number | undefined {
+  const arg = raw?.toString().trim();
+  if (!arg) return undefined;
+  const n = Number(arg);
+  if (!Number.isFinite(n) || !Number.isInteger(n)) {
+    throw new Error(`Invalid group id: "${arg}"`);
+  }
+  return n;
+}
+
 export function registerWeeklyStats(bot: Bot) {
   // Developer-only manual trigger (bot chat). Useful for testing without
-  // waiting until Monday 03:00 Tashkent.
+  // waiting until the scheduled cron fires.
+  //
+  // Usage:
+  //   /testweeklystats            — run for every group (slow)
+  //   /testweeklystats <chat_id>  — run for a single group only
   bot.command("testweeklystats", async (ctx) => {
     if (ctx.chat.type === "group" || ctx.chat.type === "supergroup") return;
     if (!ctx.from || !isDeveloper(ctx.from.id)) return;
 
-    await ctx.reply("Running weekly stats job now...");
+    let chatId: number | undefined;
     try {
-      await runWeeklyStatsNow(bot);
+      chatId = parseChatIdArg(ctx.match);
+    } catch (err) {
+      await ctx.reply((err as Error).message);
+      return;
+    }
+
+    await ctx.reply(
+      chatId !== undefined
+        ? `Running weekly stats job for ${chatId}...`
+        : "Running weekly stats job for all groups...",
+    );
+    try {
+      await runWeeklyStatsNow(bot, chatId);
       await ctx.reply("Weekly stats job finished.");
     } catch (err) {
       await ctx.reply(`Job failed: ${(err as Error).message}`);
@@ -37,9 +65,21 @@ export function registerWeeklyStats(bot: Bot) {
     if (ctx.chat.type === "group" || ctx.chat.type === "supergroup") return;
     if (!ctx.from || !isDeveloper(ctx.from.id)) return;
 
-    await ctx.reply("Running monthly stats job now...");
+    let chatId: number | undefined;
     try {
-      await runMonthlyStatsNow(bot);
+      chatId = parseChatIdArg(ctx.match);
+    } catch (err) {
+      await ctx.reply((err as Error).message);
+      return;
+    }
+
+    await ctx.reply(
+      chatId !== undefined
+        ? `Running monthly stats job for ${chatId}...`
+        : "Running monthly stats job for all groups...",
+    );
+    try {
+      await runMonthlyStatsNow(bot, chatId);
       await ctx.reply("Monthly stats job finished.");
     } catch (err) {
       await ctx.reply(`Job failed: ${(err as Error).message}`);
@@ -50,9 +90,21 @@ export function registerWeeklyStats(bot: Bot) {
     if (ctx.chat.type === "group" || ctx.chat.type === "supergroup") return;
     if (!ctx.from || !isDeveloper(ctx.from.id)) return;
 
-    await ctx.reply("Running yearly stats job now...");
+    let chatId: number | undefined;
     try {
-      await runYearlyStatsNow(bot);
+      chatId = parseChatIdArg(ctx.match);
+    } catch (err) {
+      await ctx.reply((err as Error).message);
+      return;
+    }
+
+    await ctx.reply(
+      chatId !== undefined
+        ? `Running yearly stats job for ${chatId}...`
+        : "Running yearly stats job for all groups...",
+    );
+    try {
+      await runYearlyStatsNow(bot, chatId);
       await ctx.reply("Yearly stats job finished.");
     } catch (err) {
       await ctx.reply(`Job failed: ${(err as Error).message}`);
