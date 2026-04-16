@@ -44,6 +44,8 @@ export async function getWeeklyActivity(
 ): Promise<UserActionCounts[]> {
   const since = new Date(Date.now() - days * 86400000).toISOString();
 
+  // The RPC now pivots counts server-side, returning one row per user
+  // instead of (users x action_types) rows — avoids PostgREST's 1000-row cap.
   const { data, error } = await supabase.rpc("get_weekly_action_counts", {
     p_chat_id: chatId,
     p_since: since,
@@ -54,38 +56,31 @@ export async function getWeeklyActivity(
     return [];
   }
 
-  const map = new Map<number, UserActionCounts>();
-  for (const row of (data ?? []) as { user_id: number; action_type: ActionType; cnt: number }[]) {
-    let entry = map.get(row.user_id);
-    if (!entry) {
-      entry = {
-        userId: row.user_id,
-        messages: 0,
-        replies: 0,
-        reactionsGiven: 0,
-        reactionsReceived: 0,
-        stickers: 0,
-        voices: 0,
-        media: 0,
-        videoNotes: 0,
-        gifs: 0,
-      };
-      map.set(row.user_id, entry);
-    }
-    const cnt = Number(row.cnt);
-    switch (row.action_type) {
-      case "message":           entry.messages = cnt; break;
-      case "reply":             entry.replies = cnt; break;
-      case "reaction_given":    entry.reactionsGiven = cnt; break;
-      case "reaction_received": entry.reactionsReceived = cnt; break;
-      case "sticker":           entry.stickers = cnt; break;
-      case "voice":             entry.voices = cnt; break;
-      case "media":             entry.media = cnt; break;
-      case "video_note":        entry.videoNotes = cnt; break;
-      case "gif":               entry.gifs = cnt; break;
-    }
-  }
-  return Array.from(map.values());
+  type PivotedRow = {
+    user_id: number;
+    messages: number;
+    replies: number;
+    reactions_given: number;
+    reactions_received: number;
+    stickers: number;
+    voices: number;
+    media: number;
+    video_notes: number;
+    gifs: number;
+  };
+
+  return ((data ?? []) as PivotedRow[]).map((r) => ({
+    userId: r.user_id,
+    messages: Number(r.messages ?? 0),
+    replies: Number(r.replies ?? 0),
+    reactionsGiven: Number(r.reactions_given ?? 0),
+    reactionsReceived: Number(r.reactions_received ?? 0),
+    stickers: Number(r.stickers ?? 0),
+    voices: Number(r.voices ?? 0),
+    media: Number(r.media ?? 0),
+    videoNotes: Number(r.video_notes ?? 0),
+    gifs: Number(r.gifs ?? 0),
+  }));
 }
 
 /**
@@ -94,23 +89,29 @@ export async function getWeeklyActivity(
  * category are ignored.
  */
 export function pickWinners(activity: UserActionCounts[]): WinnerRow[] {
-  const fields: [keyof Omit<UserActionCounts, "userId">, LeaderboardCategory][] = [
-    ["messages",           "topMessager"],
-    ["replies",            "topReplier"],
-    ["reactionsGiven",     "topReactionGiver"],
-    ["reactionsReceived",  "topReactionReceiver"],
-    ["stickers",           "topStickerSender"],
-    ["voices",             "topVoiceSender"],
-    ["media",              "topMediaSender"],
-    ["videoNotes",         "topVideoNoteSender"],
-    ["gifs",               "topGifSender"],
+  const fields: [
+    keyof Omit<UserActionCounts, "userId">,
+    LeaderboardCategory,
+  ][] = [
+    ["messages", "topMessager"],
+    ["replies", "topReplier"],
+    ["reactionsGiven", "topReactionGiver"],
+    ["reactionsReceived", "topReactionReceiver"],
+    ["stickers", "topStickerSender"],
+    ["voices", "topVoiceSender"],
+    ["media", "topMediaSender"],
+    ["videoNotes", "topVideoNoteSender"],
+    ["gifs", "topGifSender"],
   ];
 
   const winners: WinnerRow[] = [];
   for (const [field, category] of fields) {
     let best: UserActionCounts | null = null;
     for (const u of activity) {
-      if ((u[field] as number) > 0 && (!best || (u[field] as number) > (best[field] as number))) {
+      if (
+        (u[field] as number) > 0 &&
+        (!best || (u[field] as number) > (best[field] as number))
+      ) {
         best = u;
       }
     }
@@ -198,15 +199,15 @@ function rowsToUserCounts(rows: StatRow[]): UserActionCounts[] {
       };
       map.set(r.user_id, e);
     }
-    e.messages          += Number(r.messages           ?? 0);
-    e.replies           += Number(r.replies            ?? 0);
-    e.reactionsGiven    += Number(r.reactions_given    ?? 0);
+    e.messages += Number(r.messages ?? 0);
+    e.replies += Number(r.replies ?? 0);
+    e.reactionsGiven += Number(r.reactions_given ?? 0);
     e.reactionsReceived += Number(r.reactions_received ?? 0);
-    e.stickers          += Number(r.stickers           ?? 0);
-    e.voices            += Number(r.voices             ?? 0);
-    e.media             += Number(r.media              ?? 0);
-    e.videoNotes        += Number(r.video_notes        ?? 0);
-    e.gifs              += Number(r.gifs               ?? 0);
+    e.stickers += Number(r.stickers ?? 0);
+    e.voices += Number(r.voices ?? 0);
+    e.media += Number(r.media ?? 0);
+    e.videoNotes += Number(r.video_notes ?? 0);
+    e.gifs += Number(r.gifs ?? 0);
   }
   return Array.from(map.values());
 }
@@ -245,8 +246,12 @@ export async function getMonthlyActivity(
   chatId: number,
 ): Promise<UserActionCounts[]> {
   const now = new Date();
-  const thisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const prevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  const thisMonth = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  );
+  const prevMonth = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
+  );
   return getActivityFromTable(
     "monthly_stats",
     chatId,

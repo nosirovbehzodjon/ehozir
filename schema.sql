@@ -373,20 +373,42 @@ alter table public.yearly_stats  add column if not exists gifs        bigint not
 -- Aggregation functions.
 -- Weekly: drain `logs` → upsert into `weekly_stats`, delete drained rows.
 -- RPC: return per-user action counts for a chat since a given timestamp.
--- Returns ~(users x action_types) rows instead of thousands of raw log rows.
+-- Pivots counts into one row per user (instead of users x action_types) to
+-- stay well under PostgREST's 1000-row default limit.
 create or replace function public.get_weekly_action_counts(
   p_chat_id bigint,
   p_since timestamptz
 )
-returns table (user_id bigint, action_type text, cnt bigint)
+returns table (
+  user_id bigint,
+  messages bigint,
+  replies bigint,
+  reactions_given bigint,
+  reactions_received bigint,
+  stickers bigint,
+  voices bigint,
+  media bigint,
+  video_notes bigint,
+  gifs bigint
+)
 language sql stable
 as $$
-  select l.user_id, l.action_type, count(*) as cnt
-    from public.logs l
-   where l.chat_id = p_chat_id
-     and l.created_at >= p_since
-     and l.user_id is not null
-   group by l.user_id, l.action_type;
+  select
+    l.user_id,
+    count(*) filter (where l.action_type = 'message')           as messages,
+    count(*) filter (where l.action_type = 'reply')             as replies,
+    count(*) filter (where l.action_type = 'reaction_given')    as reactions_given,
+    count(*) filter (where l.action_type = 'reaction_received') as reactions_received,
+    count(*) filter (where l.action_type = 'sticker')           as stickers,
+    count(*) filter (where l.action_type = 'voice')             as voices,
+    count(*) filter (where l.action_type = 'media')             as media,
+    count(*) filter (where l.action_type = 'video_note')        as video_notes,
+    count(*) filter (where l.action_type = 'gif')               as gifs
+  from public.logs l
+  where l.chat_id = p_chat_id
+    and l.created_at >= p_since
+    and l.user_id is not null
+  group by l.user_id;
 $$;
 
 -- Monthly/Yearly: roll up from the previous tier, delete consumed rows of the
