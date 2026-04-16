@@ -43,6 +43,7 @@ src/
     usefulContent.ts      — Useful content pool + click tracking + per-group delivery helpers (useful_content, useful_content_clicks). Includes pickUsefulContentForDelivery (channel round-robin), send-count bumping, prune exhausted/old rows, and getMonthlyUsefulClicksByChannel for /usefulstats. All category-aware (`useful` vs `english`) — english learning content shares the same tables, distinguished by the `category` column. `getGroupsWithFeatureEnabled(feature)` powers both schedulers.
   commands/
     hamma.ts              — /hamma, /all — mention all tracked members (group only)
+    random.ts             — /qura, /random, /случайный — pick random member(s) from the group (group only)
     stats.ts              — /stats, /statistika, /статистика — tracked vs total member counts (group only)
     help.ts               — /help, /yordam, /помощь — list available commands, categorized (group only)
     news.ts               — /news, /yangiliklar, /новости — enable/disable daily news (group only)
@@ -176,6 +177,7 @@ Each command has aliases in Uzbek, Russian, and English:
 | `/uz` | — | — | Set group language to Uzbek |
 | `/ru` | — | — | Set group language to Russian |
 | `/en` | — | — | Set group language to English |
+| `/random` | `/qura` | `/случайный` | Pick random member(s) from the group (`/random 3` picks 3) |
 
 ### Developer-only group commands
 

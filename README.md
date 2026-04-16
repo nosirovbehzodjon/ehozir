@@ -149,6 +149,7 @@ npm run build && npm start
 | `/uz` | — | — | Switch to Uzbek |
 | `/ru` | — | — | Switch to Russian |
 | `/en` | — | — | Switch to English |
+| `/random` | `/qura` | `/случайный` | Pick random member(s) (`/random 3` picks 3) |
 
 ### Private chat commands (all users)
 

@@ -402,34 +402,29 @@ async function checkUserProfile(
 export function registerNsfwMiddleware(bot: Bot) {
   // Profile check on every message
   bot.on("message", async (ctx: Context, next: NextFunction) => {
-    try {
-      const chat = ctx.chat;
-      const user = ctx.from;
+    const chat = ctx.chat;
+    const user = ctx.from;
 
-      if (
-        !chat ||
-        !user ||
-        user.is_bot ||
-        (chat.type !== "group" && chat.type !== "supergroup")
-      ) {
-        await next();
-        return;
+    if (
+      chat &&
+      user &&
+      !user.is_bot &&
+      (chat.type === "group" || chat.type === "supergroup")
+    ) {
+      try {
+        const enabled = await isFeatureEnabled(chat.id, NSFW_FEATURE, false);
+        if (enabled) {
+          const banned = await checkUserProfile(
+            bot,
+            chat.id,
+            user,
+            ctx.msg?.message_id,
+          );
+          if (banned) return;
+        }
+      } catch (err) {
+        console.error("NSFW profile check error:", err);
       }
-
-      if (!(await isFeatureEnabled(chat.id, NSFW_FEATURE, false))) {
-        await next();
-        return;
-      }
-
-      const banned = await checkUserProfile(
-        bot,
-        chat.id,
-        user,
-        ctx.msg?.message_id,
-      );
-      if (banned) return;
-    } catch (err) {
-      console.error("NSFW profile check error:", err);
     }
 
     await next();
@@ -437,69 +432,58 @@ export function registerNsfwMiddleware(bot: Bot) {
 
   // Message photo check
   bot.on("message:photo", async (ctx: Context, next: NextFunction) => {
-    try {
-      const chat = ctx.chat;
-      const user = ctx.from;
+    const chat = ctx.chat;
+    const user = ctx.from;
 
-      if (
-        !chat ||
-        !user ||
-        user.is_bot ||
-        (chat.type !== "group" && chat.type !== "supergroup")
-      ) {
-        await next();
-        return;
+    if (
+      chat &&
+      user &&
+      !user.is_bot &&
+      (chat.type === "group" || chat.type === "supergroup")
+    ) {
+      try {
+        const enabled = await isFeatureEnabled(chat.id, NSFW_FEATURE, false);
+        if (enabled) {
+          const photoArray = ctx.msg?.photo;
+          if (photoArray && photoArray.length > 0) {
+            // Use the largest photo for best accuracy
+            const photo = photoArray[photoArray.length - 1];
+            const file = await ctx.api.getFile(photo.file_id);
+
+            if (file.file_path) {
+              const buffer = await downloadTelegramFile(file.file_path);
+              const result = await classifyImage(buffer);
+              await sendDevBreakdown(
+                bot,
+                {
+                  id: chat.id,
+                  type: chat.type,
+                  title: "title" in chat ? chat.title : null,
+                  username: "username" in chat ? chat.username : null,
+                },
+                result,
+                "Message photo",
+                ctx.msg?.message_id,
+              );
+
+              if (result.isNsfw) {
+                await banAndNotify(
+                  bot,
+                  chat.id,
+                  user,
+                  "message_photo",
+                  result.category,
+                  result.confidence,
+                  ctx.msg?.message_id,
+                );
+                return;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("NSFW image check error:", err);
       }
-
-      if (!(await isFeatureEnabled(chat.id, NSFW_FEATURE, false))) {
-        await next();
-        return;
-      }
-
-      const photoArray = ctx.msg?.photo;
-      if (!photoArray || photoArray.length === 0) {
-        await next();
-        return;
-      }
-
-      // Use the largest photo for best accuracy
-      const photo = photoArray[photoArray.length - 1];
-      const file = await ctx.api.getFile(photo.file_id);
-
-      if (!file.file_path) {
-        await next();
-        return;
-      }
-
-      const buffer = await downloadTelegramFile(file.file_path);
-      const result = await classifyImage(buffer);
-      await sendDevBreakdown(
-        bot,
-        {
-          id: chat.id,
-          type: chat.type,
-          title: "title" in chat ? chat.title : null,
-          username: "username" in chat ? chat.username : null,
-        },
-        result,
-        "Message photo",
-        ctx.msg?.message_id,
-      );
-
-      if (result.isNsfw) {
-        await banAndNotify(
-          bot,
-          chat.id,
-          user,
-          "message_photo",
-          result.category,
-          result.confidence,
-          ctx.msg?.message_id,
-        );
-        return;
-      }
-    } catch (err) {
-      console.error("NSFW image check error:", err);
     }
 
     await next();
@@ -507,44 +491,38 @@ export function registerNsfwMiddleware(bot: Bot) {
 
   // Reaction check — when someone reacts, check their profile
   bot.on("message_reaction", async (ctx: Context, next: NextFunction) => {
-    try {
-      const chat = ctx.chat;
-      // grammY provides ctx.messageReaction for reaction updates
-      const reaction =
-        (ctx as any).messageReaction ?? (ctx.update as any).message_reaction;
-      const user: User | undefined = reaction?.user ?? ctx.from;
+    const chat = ctx.chat;
+    const reaction =
+      (ctx as any).messageReaction ?? (ctx.update as any).message_reaction;
+    const user: User | undefined = reaction?.user ?? ctx.from;
 
-      if (
-        !chat ||
-        !user ||
-        user.is_bot ||
-        (chat.type !== "group" && chat.type !== "supergroup")
-      ) {
-        await next();
-        return;
+    if (
+      chat &&
+      user &&
+      !user.is_bot &&
+      (chat.type === "group" || chat.type === "supergroup")
+    ) {
+      try {
+        const enabled = await isFeatureEnabled(chat.id, NSFW_FEATURE, false);
+        if (enabled) {
+          const reactedMessageId: number | undefined = reaction?.message_id;
+
+          console.log(
+            `NSFW: reaction from ${user.first_name ?? user.id} (${user.id}) in ${chat.id} on message ${reactedMessageId}`,
+          );
+
+          const banned = await checkUserProfile(
+            bot,
+            chat.id,
+            user,
+            undefined,
+            reactedMessageId,
+          );
+          if (banned) return;
+        }
+      } catch (err) {
+        console.error("NSFW reaction check error:", err);
       }
-
-      if (!(await isFeatureEnabled(chat.id, NSFW_FEATURE, false))) {
-        await next();
-        return;
-      }
-
-      const reactedMessageId: number | undefined = reaction?.message_id;
-
-      console.log(
-        `NSFW: reaction from ${user.first_name ?? user.id} (${user.id}) in ${chat.id} on message ${reactedMessageId}`,
-      );
-
-      const banned = await checkUserProfile(
-        bot,
-        chat.id,
-        user,
-        undefined,
-        reactedMessageId,
-      );
-      if (banned) return;
-    } catch (err) {
-      console.error("NSFW reaction check error:", err);
     }
 
     await next();

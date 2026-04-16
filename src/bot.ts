@@ -1,6 +1,7 @@
 import { Bot, GrammyError, HttpError } from "grammy";
 import { registerTracker } from "@/middleware/tracker";
 import { registerHamma } from "@/commands/hamma";
+import { registerRandom } from "@/commands/random";
 import { registerStats } from "@/commands/stats";
 import { registerHelp } from "@/commands/help";
 import { registerNews } from "@/commands/news";
@@ -56,6 +57,7 @@ registerNsfwMiddleware(bot);
 // Commands
 registerLanguage(bot);
 registerHamma(bot);
+registerRandom(bot);
 registerStats(bot);
 registerHelp(bot);
 registerNews(bot);

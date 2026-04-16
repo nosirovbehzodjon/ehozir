@@ -1,4 +1,4 @@
-import { Bot, InputMediaBuilder } from "grammy";
+import { Bot, InputMediaBuilder, InlineKeyboard } from "grammy";
 import type { InputMediaPhoto } from "grammy/types";
 import { getPendingCard, updatePendingStatus } from "@/db/pendingCards";
 import {
@@ -6,6 +6,8 @@ import {
   runMonthlyStatsNow,
   runYearlyStatsNow,
 } from "@/scheduler/weeklyStats";
+import { getGroupLanguage } from "@/db/settings";
+import { translations } from "@/i18n/translations";
 
 const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
   .split(",")
@@ -146,13 +148,31 @@ export function registerWeeklyStats(bot: Bot) {
       ].filter((id): id is string => !!id);
 
       if (fileIds.length > 0) {
+        const botUsername = ctx.me.username;
+        const lang = await getGroupLanguage(row.chat_id);
+        const tr = translations[lang];
+        const addKb = new InlineKeyboard().url(
+          tr.startAddToGroupButton,
+          `https://t.me/${botUsername}?startgroup=true`,
+        );
+
+        // Send all cards as album with caption on the first photo
         const caption = row.caption ?? undefined;
         const media: InputMediaPhoto[] = fileIds.map((id, i) =>
           i === 0
             ? InputMediaBuilder.photo(id, caption ? { caption } : undefined)
             : InputMediaBuilder.photo(id),
         );
-        await ctx.api.sendMediaGroup(row.chat_id, media);
+        const albumMsgs = await ctx.api.sendMediaGroup(row.chat_id, media);
+
+        // Send the button as a reply to the album so they're visually linked
+        const albumMsgId = albumMsgs[0]?.message_id;
+        await ctx.api.sendMessage(row.chat_id, tr.startAddToGroupButton, {
+          reply_markup: addKb,
+          reply_parameters: albumMsgId
+            ? { message_id: albumMsgId }
+            : undefined,
+        });
       }
       await updatePendingStatus(id, "approved");
       await ctx.editMessageText(
