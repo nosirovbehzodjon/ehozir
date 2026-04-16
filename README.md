@@ -150,6 +150,7 @@ npm run build && npm start
 | `/ru` | — | — | Switch to Russian |
 | `/en` | — | — | Switch to English |
 | `/random` | `/qura` | `/случайный` | Pick random member(s) (`/random 3` picks 3) |
+| `/rate` | `/kurs` | `/курс` | Show exchange rates (USD, EUR, RUB, CNY) |
 
 ### Private chat commands (all users)
 

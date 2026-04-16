@@ -44,6 +44,7 @@ src/
   commands/
     hamma.ts              — /hamma, /all — mention all tracked members (group only)
     random.ts             — /qura, /random, /случайный — pick random member(s) from the group (group only)
+    currency.ts           — /kurs, /rate, /курс — show USD, EUR, RUB, CNY exchange rates from CBU (group only)
     stats.ts              — /stats, /statistika, /статистика — tracked vs total member counts (group only)
     help.ts               — /help, /yordam, /помощь — list available commands, categorized (group only)
     news.ts               — /news, /yangiliklar, /новости — enable/disable daily news (group only)
@@ -178,6 +179,7 @@ Each command has aliases in Uzbek, Russian, and English:
 | `/ru` | — | — | Set group language to Russian |
 | `/en` | — | — | Set group language to English |
 | `/random` | `/qura` | `/случайный` | Pick random member(s) from the group (`/random 3` picks 3) |
+| `/rate` | `/kurs` | `/курс` | Show exchange rates — USD, EUR, RUB, CNY from Central Bank of Uzbekistan |
 
 ### Developer-only group commands
 
