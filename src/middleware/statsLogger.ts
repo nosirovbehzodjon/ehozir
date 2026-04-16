@@ -75,6 +75,9 @@ function classifyMessage(msg: any): ActionType[] {
   return types;
 }
 
+// Telegram's service account that forwards channel posts to discussion groups.
+const TELEGRAM_SERVICE_ID = 777000;
+
 export function registerStatsLogger(bot: Bot) {
   bot.on("message", async (ctx, next) => {
     const chat = ctx.chat;
@@ -83,7 +86,8 @@ export function registerStatsLogger(bot: Bot) {
       chat &&
       (chat.type === "group" || chat.type === "supergroup") &&
       user &&
-      !user.is_bot
+      !user.is_bot &&
+      user.id !== TELEGRAM_SERVICE_ID
     ) {
       rememberAuthor(chat.id, ctx.message.message_id, user.id);
 

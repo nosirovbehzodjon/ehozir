@@ -17,11 +17,15 @@ export type GroupStats = {
   totalUpdatedAt: string | null;
 };
 
+// Telegram's service account that forwards channel posts to discussion groups.
+const TELEGRAM_SERVICE_ID = 777000;
+
 export async function upsertGroupAndMember(
   chat: Chat,
   user: User,
 ): Promise<void> {
   if (chat.type !== "group" && chat.type !== "supergroup") return;
+  if (user.id === TELEGRAM_SERVICE_ID) return;
 
   const now = new Date().toISOString();
 
