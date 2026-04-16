@@ -35,8 +35,8 @@ const ACTION_TO_CATEGORY: Record<ActionType, LeaderboardCategory | null> = {
 
 /**
  * Pull last-7-days activity for a chat, grouped by user and action.
- * Runs before weekly aggregation has drained `logs`, so per-user data is
- * available directly from the raw log rows.
+ * Uses a Postgres RPC that does GROUP BY on the server — returns tens of
+ * rows (users x action_types) instead of thousands of raw log rows.
  */
 export async function getWeeklyActivity(
   chatId: number,
@@ -44,25 +44,22 @@ export async function getWeeklyActivity(
 ): Promise<UserActionCounts[]> {
   const since = new Date(Date.now() - days * 86400000).toISOString();
 
-  const { data, error } = await supabase
-    .from("logs")
-    .select("user_id, action_type")
-    .eq("chat_id", chatId)
-    .gte("created_at", since)
-    .not("user_id", "is", null);
+  const { data, error } = await supabase.rpc("get_weekly_action_counts", {
+    p_chat_id: chatId,
+    p_since: since,
+  });
 
   if (error) {
-    console.error("logs weekly select error:", error.message);
+    console.error("get_weekly_action_counts rpc error:", error.message);
     return [];
   }
 
   const map = new Map<number, UserActionCounts>();
-  for (const row of data ?? []) {
-    const r = row as { user_id: number; action_type: ActionType };
-    let entry = map.get(r.user_id);
+  for (const row of (data ?? []) as { user_id: number; action_type: ActionType; cnt: number }[]) {
+    let entry = map.get(row.user_id);
     if (!entry) {
       entry = {
-        userId: r.user_id,
+        userId: row.user_id,
         messages: 0,
         replies: 0,
         reactionsGiven: 0,
@@ -73,18 +70,19 @@ export async function getWeeklyActivity(
         videoNotes: 0,
         gifs: 0,
       };
-      map.set(r.user_id, entry);
+      map.set(row.user_id, entry);
     }
-    switch (r.action_type) {
-      case "message":           entry.messages++; break;
-      case "reply":             entry.replies++; break;
-      case "reaction_given":    entry.reactionsGiven++; break;
-      case "reaction_received": entry.reactionsReceived++; break;
-      case "sticker":           entry.stickers++; break;
-      case "voice":             entry.voices++; break;
-      case "media":             entry.media++; break;
-      case "video_note":        entry.videoNotes++; break;
-      case "gif":               entry.gifs++; break;
+    const cnt = Number(row.cnt);
+    switch (row.action_type) {
+      case "message":           entry.messages = cnt; break;
+      case "reply":             entry.replies = cnt; break;
+      case "reaction_given":    entry.reactionsGiven = cnt; break;
+      case "reaction_received": entry.reactionsReceived = cnt; break;
+      case "sticker":           entry.stickers = cnt; break;
+      case "voice":             entry.voices = cnt; break;
+      case "media":             entry.media = cnt; break;
+      case "video_note":        entry.videoNotes = cnt; break;
+      case "gif":               entry.gifs = cnt; break;
     }
   }
   return Array.from(map.values());

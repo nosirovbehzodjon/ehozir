@@ -372,6 +372,23 @@ alter table public.yearly_stats  add column if not exists gifs        bigint not
 -- ----------------------------------------------------------------------------
 -- Aggregation functions.
 -- Weekly: drain `logs` → upsert into `weekly_stats`, delete drained rows.
+-- RPC: return per-user action counts for a chat since a given timestamp.
+-- Returns ~(users x action_types) rows instead of thousands of raw log rows.
+create or replace function public.get_weekly_action_counts(
+  p_chat_id bigint,
+  p_since timestamptz
+)
+returns table (user_id bigint, action_type text, cnt bigint)
+language sql stable
+as $$
+  select l.user_id, l.action_type, count(*) as cnt
+    from public.logs l
+   where l.chat_id = p_chat_id
+     and l.created_at >= p_since
+     and l.user_id is not null
+   group by l.user_id, l.action_type;
+$$;
+
 -- Monthly/Yearly: roll up from the previous tier, delete consumed rows of the
 -- tier being rolled up (weekly rows older than current month, etc.).
 -- All three are atomic: CTE DELETE ... RETURNING feeds an INSERT ... ON CONFLICT.
