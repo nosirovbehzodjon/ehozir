@@ -130,6 +130,25 @@ export async function getGroupMember(
   return data;
 }
 
+export async function getGroupMembersByIds(
+  chatId: number,
+  userIds: number[],
+): Promise<GroupMemberRow[]> {
+  if (userIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("group_members")
+    .select(
+      "chat_id,user_id,username,first_name,last_name,is_bot,language_code",
+    )
+    .eq("chat_id", chatId)
+    .in("user_id", userIds);
+  if (error) {
+    console.error("group_members batch select error:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 export async function getGroupStats(chatId: number): Promise<GroupStats> {
   const { data, error } = await supabase
     .from("groups")

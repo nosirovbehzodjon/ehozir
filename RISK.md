@@ -37,7 +37,7 @@ Loops that make individual DB or HTTP calls per item instead of batching.
 
 | # | Location | Status | Impact |
 |---|----------|--------|--------|
-| 3.1 | `src/scheduler/weeklyStats.ts:135-158` — winner/top10 resolution | open | For each group: up to 17 sequential `getGroupMember()` DB calls + 17 `getUserAvatar()` HTTP calls. With many groups this compounds. |
+| 3.1 | `src/scheduler/weeklyStats.ts` — winner/top10 resolution | **fixed** | Deduped userIds across winners + top10, resolve members in one batched `getGroupMembersByIds()` call, fetch each unique avatar once in parallel. DB calls dropped from ~19 to 1 per group; avatar fetches deduped. |
 | 3.2 | `src/scheduler/usefulContent.ts` — `resolvePendingChannels()` | open | One YouTube API call per pending channel, sequentially. 10 pending channels = ~50s of latency. |
 | 3.3 | `src/db/usefulContent.ts:135` — `incrementUsefulContentSent()` fallback | open | If RPC fails, falls back to one UPDATE per row in a sequential loop. |
 

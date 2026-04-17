@@ -15,7 +15,7 @@ import {
   pickTopN,
   type UserActionCounts,
 } from "@/db/weeklyWinners";
-import { listAllGroups, getGroupMember } from "@/db/groups";
+import { listAllGroups, getGroupMembersByIds } from "@/db/groups";
 import { getGroupLanguage } from "@/db/settings";
 import { insertPendingCard } from "@/db/pendingCards";
 import { runAggregation } from "@/db/logs";
@@ -131,31 +131,45 @@ async function processGroup(
   const groupTitle = chat.title || `Group ${chat.chat_id}`;
   const label = periodLabel(period);
 
-  // Resolve winner names + avatars for leaderboard.
-  const resolvedWinners: LeaderboardWinner[] = await Promise.all(
-    winners.map(async (w) => {
-      const member = await getGroupMember(chat.chat_id, w.userId);
-      const name = member ? fullName(member) : `User ${w.userId}`;
-      const avatarUrl = await getUserAvatar(bot, w.userId);
-      return {
-        category: w.category,
-        fullName: name,
-        avatarUrl,
-        count: w.count,
-      };
-    }),
+  // Dedupe user IDs across winners + top10 (heavy overlap) and resolve
+  // members in one batched DB call + avatars once per unique user.
+  // Fixes RISK 3.1 (N+1 member lookup + duplicate avatar fetches).
+  const uniqueUserIds = [
+    ...new Set([
+      ...winners.map((w) => w.userId),
+      ...topTen.map((u) => u.userId),
+    ]),
+  ];
+
+  const members = await getGroupMembersByIds(chat.chat_id, uniqueUserIds);
+  const memberById = new Map(members.map((m) => [m.user_id, m]));
+
+  const avatarList = await Promise.all(
+    uniqueUserIds.map((id) => getUserAvatar(bot, id)),
+  );
+  const avatarById = new Map(
+    uniqueUserIds.map((id, i) => [id, avatarList[i]]),
   );
 
-  // Resolve top 10 users once; first 3 are reused for the podium cards.
-  const resolvedTopTen = await Promise.all(
-    topTen.map(async (user) => {
-      const member = await getGroupMember(chat.chat_id, user.userId);
-      const name = member ? fullName(member) : `User ${user.userId}`;
-      const username = member?.username ?? undefined;
-      const avatarUrl = await getUserAvatar(bot, user.userId);
-      return { user, name, username, avatarUrl };
-    }),
-  );
+  const resolvedWinners: LeaderboardWinner[] = winners.map((w) => {
+    const member = memberById.get(w.userId);
+    return {
+      category: w.category,
+      fullName: member ? fullName(member) : `User ${w.userId}`,
+      avatarUrl: avatarById.get(w.userId) ?? pickFallbackAvatar(),
+      count: w.count,
+    };
+  });
+
+  const resolvedTopTen = topTen.map((user) => {
+    const member = memberById.get(user.userId);
+    return {
+      user,
+      name: member ? fullName(member) : `User ${user.userId}`,
+      username: member?.username ?? undefined,
+      avatarUrl: avatarById.get(user.userId) ?? pickFallbackAvatar(),
+    };
+  });
   const resolvedTop = resolvedTopTen.slice(0, 3);
 
   const topTenEntries: TopTenEntry[] = resolvedTopTen.map((r) => ({
