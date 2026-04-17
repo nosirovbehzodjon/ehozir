@@ -1,6 +1,8 @@
 import { supabase } from "./client";
 import type { Chat, User } from "grammy/types";
 
+export type GroupKind = "group" | "discussion";
+
 export type GroupMemberRow = {
   chat_id: number;
   user_id: number;
@@ -80,6 +82,19 @@ export async function getGroupMembers(
     return [];
   }
   return data ?? [];
+}
+
+export async function setGroupKind(
+  chatId: number,
+  kind: GroupKind,
+): Promise<void> {
+  const { error } = await supabase
+    .from("groups")
+    .update({ kind, updated_at: new Date().toISOString() })
+    .eq("chat_id", chatId);
+  if (error) {
+    console.error("groups kind update error:", error.message);
+  }
 }
 
 export async function setTelegramMemberCount(

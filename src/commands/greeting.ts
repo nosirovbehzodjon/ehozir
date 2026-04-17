@@ -3,6 +3,8 @@ import { onCommand } from "@/i18n";
 import { translations, DEFAULT_LANG } from "@/i18n/translations";
 import { getGroupLanguage } from "@/db/settings";
 import { upsertUser, getUser, awardInvitePoints } from "@/db/users";
+import { setGroupKind } from "@/db/groups";
+import { classifyGroup } from "@/scheduler/groupClassifier";
 
 const INVITE_POINTS = 10;
 
@@ -34,6 +36,12 @@ export function registerGreeting(bot: Bot) {
     const isInside = newStatus === "member" || newStatus === "administrator";
 
     if (!wasOutside || !isInside) return;
+
+    // Classify on join so `kind` is populated immediately instead of
+    // waiting up to a week for the Sunday refresh. Non-critical — any
+    // failure just leaves the column null for the next scheduler run.
+    const kind = await classifyGroup(ctx.api, chat.id);
+    if (kind !== null) await setGroupKind(chat.id, kind);
 
     // Skip greeting when a developer added the bot — they already know
     // what it does and don't need the welcome copy in their test groups.

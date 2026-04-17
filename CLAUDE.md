@@ -79,6 +79,7 @@ src/
     dailyNews.ts          — Cron job sends news at multiple configurable hours (Tashkent timezone)
     usefulContent.ts      — Two parallel cron jobs (useful + english) fetch curated YouTube channel uploads and deliver them daily. Useful at `useful_content_hours` (default 10, Tashkent), English at `english_content_hours` (default 16, Tashkent). Both reuse the same core pipeline via a `ContentKind` config; exports `start{Useful,English}ContentScheduler`, `sendDaily{Useful,English}Content`, and `send{Useful,English}ContentToChat`.
     weeklyStats.ts        — Weekly/monthly/yearly leaderboard + champion cards. Exports runStatsNow(period, chatId?), runWeeklyStatsNow(bot, chatId?), runMonthlyStatsNow(bot, chatId?), runYearlyStatsNow(bot, chatId?), and the three start*StatsScheduler functions. Passing a chatId narrows the job to a single group — the `/test*stats [chat_id]` commands use this to avoid running against every group during manual testing. Monthly/yearly runs trigger pg aggregate RPCs before reading the aggregate tables.
+    groupClassifier.ts    — Classifies each tracked group as `'group'` or `'discussion'` by checking `linked_chat_id` on the full Chat object (`bot.api.getChat`). Exports classifyGroup(api, chatId), refreshAllGroupKinds(bot), and startGroupClassifierScheduler(bot) which runs Sun 03:00 Tashkent. Greeting handler also calls classifyGroup on join so new groups are classified immediately.
   i18n/
     translations.ts       — All translations (uz/ru/en) with type-safe Translation type
     index.ts              — t(lang) helper, onCommand() for Latin + Cyrillic command aliases
@@ -103,9 +104,10 @@ Idempotent DDL for Supabase tables. Re-run any time the schema changes — all s
 
 ### Database Schema (Supabase / Postgres)
 
-- `groups(chat_id PK, title, type, username, member_count, telegram_member_count, telegram_member_count_updated_at, created_at, updated_at)`
+- `groups(chat_id PK, title, type, username, member_count, telegram_member_count, telegram_member_count_updated_at, kind, created_at, updated_at)`
   - `member_count` — count of non-bot rows in `group_members`. Maintained by trigger `group_members_count_trg`.
   - `telegram_member_count` / `telegram_member_count_updated_at` — true total from `getChatMemberCount`, refreshed on `/stats`.
+  - `kind` — `'group'` or `'discussion'` (nullable). A discussion group is a supergroup linked to a Telegram channel (has `linked_chat_id` on the full Chat object). Populated on bot join and refreshed weekly by `startGroupClassifierScheduler` (Sun 03:00 Tashkent).
 - `group_members(chat_id FK->groups, user_id, username, first_name, last_name, is_bot, language_code, first_seen, last_seen, PK(chat_id, user_id))`
   - Index: `group_members_chat_id_idx` on `(chat_id)`
   - Trigger: `group_members_count_trg` -> keeps `groups.member_count` accurate.

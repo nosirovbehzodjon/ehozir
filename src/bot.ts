@@ -33,6 +33,7 @@ import {
   startUsefulContentScheduler,
   startEnglishContentScheduler,
 } from "@/scheduler/usefulContent";
+import { startGroupClassifierScheduler } from "@/scheduler/groupClassifier";
 import { initNotifier, notifyDevelopers } from "@/utils/notify";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -83,6 +84,7 @@ startEnglishContentScheduler(bot);
 startWeeklyStatsScheduler(bot);
 startMonthlyStatsScheduler(bot);
 startYearlyStatsScheduler(bot);
+startGroupClassifierScheduler(bot);
 
 // Error handler
 bot.catch(async (err) => {

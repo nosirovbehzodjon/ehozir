@@ -27,6 +27,13 @@ alter table public.groups
 alter table public.groups
   add column if not exists language text not null default 'uz';
 
+-- Group vs discussion-group classification. Populated on bot join and
+-- refreshed weekly by startGroupClassifierScheduler. Null = not yet
+-- classified (older groups added before this column existed).
+alter table public.groups
+  add column if not exists kind text
+  check (kind is null or kind in ('group', 'discussion'));
+
 create table if not exists public.group_members (
   chat_id bigint not null references public.groups(chat_id) on delete cascade,
   user_id bigint not null,
