@@ -196,7 +196,12 @@ src/
   utils/              — Markdown escaping, notifications
 schema.sql            — Database DDL (idempotent)
 supabase/functions/   — Edge Functions (click tracking)
+RISK.md               — Tracked known risks (perf / scalability / reliability / data correctness)
 ```
+
+## Known Risks
+
+See [`RISK.md`](./RISK.md) for a categorized list of known performance, scalability, reliability, and data-correctness issues. Each entry has a stable numeric ID (e.g. `3.1`), a code location pointer, a `status` (`open` / `fixed`), and an impact note. Reference these IDs in commit messages and PRs when fixing them (e.g. `fix 3.1: ...`) and flip the row's status to `fixed` as part of the same change.
 
 ## License
 

@@ -12,6 +12,18 @@ Any change that adds, removes, or renames a feature, command, DB table/column, e
 
 Treat these updates as part of the same change, not a follow-up. Before declaring a task done, re-read the diff and ask: "did I add/remove/rename anything user-visible? If yes, are README, CLAUDE.md, and both i18n strings updated in all 3 langs?"
 
+## Known Risks (`RISK.md`)
+
+`RISK.md` tracks known performance, scalability, reliability, and data-correctness issues that are not yet fixed. Each risk has a stable numeric ID (e.g. `1.2`, `3.1`), a code location pointer, a `status` (`open` / `fixed`), and an impact note. Risks are grouped by category: PostgREST 1000-row limit, Telegram rate limits, N+1 query patterns, scheduler overlap, silent failures, race conditions, and memory.
+
+When fixing a risk:
+
+1. Flip its row `status` from `open` to `fixed` in `RISK.md` as part of the same change.
+2. Keep the ID stable — do not renumber or delete rows, so commits and PRs that reference an ID stay valid.
+3. When adding new risks, append to the appropriate category table with the next available ID.
+
+Reference risks by ID in commit messages and PR descriptions (e.g. `fix 3.1: dedupe + batch member+avatar resolution`) so progress against `RISK.md` is easy to audit.
+
 ## Project Overview
 
 A multi-feature Telegram bot (TypeScript + grammY) for Uzbek community groups. Core features: member mentions, daily news delivery from external sources (daryo.uz), multi-language support (uz/ru/en), and automatic NSFW protection using machine learning. Data is persisted to Supabase Postgres.
