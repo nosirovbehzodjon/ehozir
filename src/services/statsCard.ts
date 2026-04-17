@@ -13,6 +13,7 @@ let modulesPromise: Promise<{ satori: any; html: any }> | null = null;
 let fontsPromise: Promise<{
   regular: ArrayBuffer;
   bold: ArrayBuffer;
+  emoji: ArrayBuffer;
 }> | null = null;
 
 function loadModulesOnce() {
@@ -30,7 +31,8 @@ function loadFontsOnce() {
     fontsPromise = Promise.all([
       readFile(path.join(fontsDir, "Montserrat-Regular.ttf")),
       readFile(path.join(fontsDir, "Montserrat-Black.ttf")),
-    ]).then(([regular, black]) => ({
+      readFile(path.join(fontsDir, "NotoEmoji-Regular.ttf")),
+    ]).then(([regular, black, emoji]) => ({
       regular: regular.buffer.slice(
         regular.byteOffset,
         regular.byteOffset + regular.byteLength,
@@ -38,6 +40,10 @@ function loadFontsOnce() {
       bold: black.buffer.slice(
         black.byteOffset,
         black.byteOffset + black.byteLength,
+      ) as ArrayBuffer,
+      emoji: emoji.buffer.slice(
+        emoji.byteOffset,
+        emoji.byteOffset + emoji.byteLength,
       ) as ArrayBuffer,
     }));
   }
@@ -123,6 +129,31 @@ async function toDataUrl(url: string): Promise<string> {
   }
   avatarCache.set(url, result);
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Emoji rendering — Montserrat has no emoji glyphs, so group titles / user
+// names containing 🌸 etc. would render as tofu boxes. We bundle Noto Emoji
+// (monochrome TTF) as a fallback font so satori finds a glyph for any
+// pictograph. Satori cannot render color emoji from font files, so this is
+// monochrome by design — reliable, offline, no network/CDN dependency.
+// ---------------------------------------------------------------------------
+
+// Shared satori options for all three renderers. Keeps font list in one
+// place so cards stay visually consistent.
+function satoriCommonOpts(fonts: {
+  regular: ArrayBuffer;
+  bold: ArrayBuffer;
+  emoji: ArrayBuffer;
+}) {
+  return {
+    fonts: [
+      { name: "Montserrat", data: fonts.regular, weight: 400, style: "normal" },
+      { name: "Montserrat", data: fonts.bold, weight: 700, style: "normal" },
+      { name: "Montserrat", data: fonts.bold, weight: 900, style: "normal" },
+      { name: "NotoEmoji", data: fonts.emoji, weight: 400, style: "normal" },
+    ],
+  } as const;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,11 +279,7 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
     const svg = await satori(markup as any, {
       width: 900,
       height: 1440,
-      fonts: [
-        { name: "Montserrat", data: fonts.regular, weight: 400, style: "normal" },
-        { name: "Montserrat", data: fonts.bold, weight: 700, style: "normal" },
-        { name: "Montserrat", data: fonts.bold, weight: 900, style: "normal" },
-      ],
+      ...satoriCommonOpts(fonts),
     });
 
     const png = new Resvg(svg, { fitTo: { mode: "width", value: 900 } })
@@ -353,11 +380,7 @@ export async function renderLeaderboardCard(
     const svg = await satori(markup as any, {
       width: 900,
       height,
-      fonts: [
-        { name: "Montserrat", data: fonts.regular, weight: 400, style: "normal" },
-        { name: "Montserrat", data: fonts.bold, weight: 700, style: "normal" },
-        { name: "Montserrat", data: fonts.bold, weight: 900, style: "normal" },
-      ],
+      ...satoriCommonOpts(fonts),
     });
 
     const png = new Resvg(svg, { fitTo: { mode: "width", value: 900 } })
@@ -446,11 +469,7 @@ export async function renderTopTenCard(
     const svg = await satori(markup as any, {
       width: 900,
       height,
-      fonts: [
-        { name: "Montserrat", data: fonts.regular, weight: 400, style: "normal" },
-        { name: "Montserrat", data: fonts.bold, weight: 700, style: "normal" },
-        { name: "Montserrat", data: fonts.bold, weight: 900, style: "normal" },
-      ],
+      ...satoriCommonOpts(fonts),
     });
 
     const png = new Resvg(svg, { fitTo: { mode: "width", value: 900 } })

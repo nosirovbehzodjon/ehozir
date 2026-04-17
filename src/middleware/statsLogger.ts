@@ -9,6 +9,7 @@ import {
   rememberAuthor as rememberAuthorDb,
   lookupAuthor as lookupAuthorDb,
 } from "@/db/messageAuthors";
+import { notifyDevelopers } from "@/utils/notify";
 
 // ---------------------------------------------------------------------------
 // Message-author cache.
@@ -43,7 +44,14 @@ function cachePut(chatId: number, messageId: number, userId: number) {
 function rememberAuthor(chatId: number, messageId: number, userId: number) {
   cachePut(chatId, messageId, userId);
   // Fire-and-forget DB write — we don't block the message handler on it.
-  rememberAuthorDb(chatId, messageId, userId).catch(() => {});
+  // Dedup key caps DMs at one per window even if the DB is down under load;
+  // every failure is still console-logged.
+  rememberAuthorDb(chatId, messageId, userId).catch((err) =>
+    notifyDevelopers("rememberAuthorDb failed", {
+      error: err,
+      dedupKey: "rememberAuthorDb",
+    }),
+  );
 }
 
 async function lookupAuthor(

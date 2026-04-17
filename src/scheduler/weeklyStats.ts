@@ -357,10 +357,9 @@ export async function runStatsNow(
     try {
       await processGroup(bot, g, period);
     } catch (err) {
-      console.error(`[${period}Stats] group ${g.chat_id} failed:`, err);
-      await notifyDevelopers(
-        `${period}Stats failed for ${g.chat_id}: ${(err as Error).message}`,
-      );
+      await notifyDevelopers(`${period}Stats failed for ${g.chat_id}`, {
+        error: err,
+      });
     }
   }
 }
@@ -393,7 +392,7 @@ export function startWeeklyStatsScheduler(bot: Bot): void {
     "0 3 * * 1",
     () => {
       runWeeklyStatsNow(bot).catch((err) =>
-        console.error("[weeklyStats] scheduler run failed:", err),
+        notifyDevelopers("weeklyStats scheduler run failed", { error: err }),
       );
     },
     { timezone: "Asia/Tashkent" },
@@ -409,7 +408,7 @@ export function startMonthlyStatsScheduler(bot: Bot): void {
     "0 4 1 * *",
     () => {
       runMonthlyStatsNow(bot).catch((err) =>
-        console.error("[monthlyStats] scheduler run failed:", err),
+        notifyDevelopers("monthlyStats scheduler run failed", { error: err }),
       );
     },
     { timezone: "Asia/Tashkent" },
@@ -424,7 +423,7 @@ export function startYearlyStatsScheduler(bot: Bot): void {
     "0 5 1 1 *",
     () => {
       runYearlyStatsNow(bot).catch((err) =>
-        console.error("[yearlyStats] scheduler run failed:", err),
+        notifyDevelopers("yearlyStats scheduler run failed", { error: err }),
       );
     },
     { timezone: "Asia/Tashkent" },

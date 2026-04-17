@@ -61,8 +61,8 @@ Operations that silently swallow errors, causing data loss or incorrect behavior
 
 | # | Location | Status | Impact |
 |---|----------|--------|--------|
-| 5.1 | `src/middleware/statsLogger.ts:46` — `rememberAuthorDb(...).catch(() => {})` | open | If author caching fails silently, `reaction_received` stats attribute to wrong user after bot restart. Empty catch = no logging. |
-| 5.2 | `src/scheduler/weeklyStats.ts:381` — scheduler `.catch()` only logs | open | If `processGroup` fails, error is logged but developers are not notified via Telegram. |
+| 5.1 | `src/middleware/statsLogger.ts` — `rememberAuthorDb` catch | **fixed** | Empty catch replaced with `notifyDevelopers` using a `dedupKey` so hot-path failures log every time but DM at most once per 5min window. |
+| 5.2 | `src/scheduler/weeklyStats.ts` — top-level scheduler catches | **fixed** | All three `start*StatsScheduler` functions now route outer failures through `notifyDevelopers` instead of `console.error`, matching the existing per-group behavior. |
 
 ---
 

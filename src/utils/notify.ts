@@ -12,10 +12,56 @@ export function initNotifier(bot: Bot) {
   botInstance = bot;
 }
 
-export async function notifyDevelopers(message: string): Promise<void> {
+// Per-key last-DM timestamp for optional dedup. Keeps hot-path callers
+// (e.g. every message in busy groups) from spamming developer DMs when a
+// dependency is degraded — console logs still capture every occurrence.
+const lastDmByKey = new Map<string, number>();
+const DEFAULT_DEDUP_WINDOW_MS = 5 * 60 * 1000;
+
+export type NotifyOptions = {
+  error?: unknown;
+  dedupKey?: string;
+  dedupWindowMs?: number;
+};
+
+/**
+ * Global error sink. Always logs to console; DMs developers unless a
+ * dedupKey silences a repeat within the window. Safe to call fire-and-forget
+ * in hot paths when a dedupKey is provided. Pass the caught error via
+ * `options.error` to get stack traces in both log and DM.
+ */
+export async function notifyDevelopers(
+  message: string,
+  options?: NotifyOptions,
+): Promise<void> {
+  const err = options?.error;
+  if (err instanceof Error) {
+    console.error(`[notify] ${message}`, err.stack ?? err.message);
+  } else if (err !== undefined) {
+    console.error(`[notify] ${message}`, err);
+  } else {
+    console.error(`[notify] ${message}`);
+  }
+
   if (!botInstance || DEVELOPER_IDS.length === 0) return;
 
-  const text = `⚠️ <b>Bot Error</b>\n\n<pre>${escapeHtml(message.slice(0, 3500))}</pre>`;
+  if (options?.dedupKey) {
+    const now = Date.now();
+    const last = lastDmByKey.get(options.dedupKey) ?? 0;
+    const window = options.dedupWindowMs ?? DEFAULT_DEDUP_WINDOW_MS;
+    if (now - last < window) return;
+    lastDmByKey.set(options.dedupKey, now);
+  }
+
+  const tail =
+    err instanceof Error
+      ? `\n${err.message}`
+      : err !== undefined
+        ? `\n${String(err)}`
+        : "";
+  const text = `<b>Bot Error</b>\n\n<pre>${escapeHtml(
+    (message + tail).slice(0, 3500),
+  )}</pre>`;
 
   for (const id of DEVELOPER_IDS) {
     try {

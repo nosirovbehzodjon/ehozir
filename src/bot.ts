@@ -89,32 +89,23 @@ bot.catch(async (err) => {
   const ctx = err.ctx;
   const e = err.error;
 
-  let message = `Update ${ctx.update.update_id}:\n`;
+  const prefix = `Update ${ctx.update.update_id}`;
   if (e instanceof GrammyError) {
-    message += `Telegram API error: ${e.description}`;
+    await notifyDevelopers(`${prefix}: Telegram API error: ${e.description}`);
   } else if (e instanceof HttpError) {
-    message += `Network error: ${e.message}`;
-  } else if (e instanceof Error) {
-    message += `${e.message}\n${e.stack ?? ""}`;
+    await notifyDevelopers(`${prefix}: Network error: ${e.message}`);
   } else {
-    message += String(e);
+    await notifyDevelopers(prefix, { error: e });
   }
-
-  console.error(message);
-  await notifyDevelopers(message);
 });
 
 // Global uncaught error handlers
 process.on("uncaughtException", async (err) => {
-  const message = `Uncaught Exception:\n${err.message}\n${err.stack ?? ""}`;
-  console.error(message);
-  await notifyDevelopers(message);
+  await notifyDevelopers("Uncaught Exception", { error: err });
 });
 
 process.on("unhandledRejection", async (reason) => {
-  const message = `Unhandled Rejection:\n${reason instanceof Error ? `${reason.message}\n${reason.stack ?? ""}` : String(reason)}`;
-  console.error(message);
-  await notifyDevelopers(message);
+  await notifyDevelopers("Unhandled Rejection", { error: reason });
 });
 
 // Pre-load NSFW model + stats card renderer, then start the bot
