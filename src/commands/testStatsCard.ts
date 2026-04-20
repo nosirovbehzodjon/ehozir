@@ -79,6 +79,7 @@ export function registerTestStatsCard(bot: Bot) {
           media: 73,
           videoNotes: 14,
           gifs: 22,
+          links: 46,
         },
       });
 
@@ -156,6 +157,12 @@ export function registerTestStatsCard(bot: Bot) {
             fullName: "Sardor Aliyev",
             avatarUrl,
             count: 94,
+          },
+          {
+            category: "topLinkSender",
+            fullName: "Oybek Nazarov",
+            avatarUrl,
+            count: 57,
           },
         ],
       });

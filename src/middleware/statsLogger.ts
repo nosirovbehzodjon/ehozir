@@ -65,9 +65,29 @@ async function lookupAuthor(
   return fromDb;
 }
 
+// Matches bare URLs that Telegram didn't parse into an entity (rare on modern
+// clients, but guards against plain-text links in forwarded/edited messages).
+const URL_REGEX = /\bhttps?:\/\/[^\s<>"']+|(?<![@\w])(?:www\.|\w+\.(?:com|net|org|io|dev|uz|ru|me))[^\s<>"']*/i;
+
+function hasLink(msg: any): boolean {
+  const entities = msg.entities ?? msg.caption_entities ?? [];
+  for (const e of entities) {
+    if (e.type === "url" || e.type === "text_link") return true;
+  }
+  // Some clients (and old Android Telegram) don't emit url entities for
+  // messages that are purely a URL. Fall back to a regex scan so those still
+  // count.
+  const text: string = msg.text ?? msg.caption ?? "";
+  if (text && URL_REGEX.test(text)) return true;
+  return false;
+}
+
 /**
  * Classify a Telegram message into zero or more stat action types.
  * A single message can count as multiple (e.g. a voice reply = reply + voice).
+ * `link` is added at most once per message regardless of how many URLs it
+ * contains, and whether it's a reply or a plain message — the user either
+ * sent a link or didn't.
  */
 function classifyMessage(msg: any): ActionType[] {
   const types: ActionType[] = ["message"];
@@ -80,6 +100,7 @@ function classifyMessage(msg: any): ActionType[] {
   } else if (msg.photo || msg.video || msg.document || msg.audio) {
     types.push("media");
   }
+  if (hasLink(msg)) types.push("link");
   return types;
 }
 

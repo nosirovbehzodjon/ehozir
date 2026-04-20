@@ -9,7 +9,8 @@ export type ActionType =
   | "voice"
   | "media"
   | "video_note"
-  | "gif";
+  | "gif"
+  | "link";
 
 export type LogEntry = {
   chat_id: number;

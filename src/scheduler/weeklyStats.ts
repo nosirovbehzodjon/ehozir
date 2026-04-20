@@ -184,7 +184,8 @@ async function processGroup(
       r.user.voices +
       r.user.media +
       r.user.videoNotes +
-      r.user.gifs,
+      r.user.gifs +
+      r.user.links,
   }));
 
   // Render leaderboard + top10 + up to 3 podium cards in parallel.
@@ -226,6 +227,7 @@ async function processGroup(
           media: r.user.media,
           videoNotes: r.user.videoNotes,
           gifs: r.user.gifs,
+          links: r.user.links,
         },
       }),
     ),

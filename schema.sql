@@ -1,6 +1,15 @@
+-- ============================================================================
+-- GENERATED FILE — do not edit by hand.
+-- Source partials live in supabase/sql/*.sql; run `npm run build:schema` to
+-- regenerate this file after editing them. The Supabase workflow (paste this
+-- file into the SQL Editor) is unchanged — this file is the artifact, not
+-- the source of truth.
+-- ============================================================================
+
 -- Run this in Supabase SQL Editor (Project → SQL Editor → New query)
 -- It is idempotent and safe to re-run.
 
+-- >>> supabase/sql/groups.sql
 create table if not exists public.groups (
   chat_id bigint primary key,
   title text,
@@ -92,6 +101,18 @@ create trigger group_members_count_trg
 after insert or update or delete on public.group_members
 for each row execute function public.group_members_count_trigger();
 
+-- One-time backfill so existing rows get the right count immediately.
+update public.groups g
+   set member_count = coalesce(sub.cnt, 0)
+  from (
+    select chat_id, count(*) as cnt
+      from public.group_members
+     where is_bot = false
+     group by chat_id
+  ) sub
+ where g.chat_id = sub.chat_id;
+
+-- >>> supabase/sql/settings.sql
 -- ----------------------------------------------------------------------------
 -- Legacy commands registry — removed. /help reads from src/i18n/translations.ts,
 -- which is the single source of truth for the command list.
@@ -126,43 +147,6 @@ insert into public.group_settings (chat_id, feature, enabled, value, updated_at)
   where language is not null and language <> 'uz'
 on conflict (chat_id, feature) do nothing;
 
--- Drop legacy news tables (replaced by external_news)
-drop table if exists public.news_clicks;
-drop table if exists public.news;
-
--- ----------------------------------------------------------------------------
--- Sensitive profile log — flagged NSFW profiles for cross-group recognition.
--- When a user is detected as NSFW in one group, they can be instantly banned
--- in any other group without re-scanning.
--- ----------------------------------------------------------------------------
-
-create table if not exists public.sensitive_profile_log (
-  user_id bigint primary key,
-  username text,
-  first_name text,
-  last_name text,
-  reason text not null,       -- 'profile_photo', 'channel_photo', 'message_photo'
-  category text not null,     -- 'Porn', 'Hentai', 'Sexy'
-  confidence real not null,
-  detected_in_chat_id bigint,
-  created_at timestamptz not null default now()
-);
-
-create index if not exists sensitive_profile_log_created_at_idx
-  on public.sensitive_profile_log (created_at);
-
--- ----------------------------------------------------------------------------
--- NSFW profile check log — tracks when each user was last scanned so the bot
--- doesn't re-download and re-classify on every single message.
--- Only used in production (NODE_ENV=production); in development every message
--- triggers a fresh scan for easier testing.
--- ----------------------------------------------------------------------------
-
-create table if not exists public.nsfw_check_log (
-  user_id bigint primary key,
-  checked_at timestamptz not null default now()
-);
-
 -- ----------------------------------------------------------------------------
 -- Bot-wide settings — key/value store for global bot configuration.
 -- Used for things like daily news hour, timezone, etc.
@@ -178,6 +162,11 @@ create table if not exists public.bot_settings (
 insert into public.bot_settings (key, value) values
   ('news_hours', '11,19')
 on conflict (key) do nothing;
+
+-- >>> supabase/sql/external_news.sql
+-- Drop legacy news tables (replaced by external_news)
+drop table if exists public.news_clicks;
+drop table if exists public.news;
 
 -- ----------------------------------------------------------------------------
 -- External news — fetched from kun.uz and daryo.uz APIs.
@@ -215,12 +204,47 @@ create table if not exists public.external_news_clicks (
 create index if not exists external_news_clicks_news_id_idx
   on public.external_news_clicks (news_id);
 
+-- >>> supabase/sql/sensitive.sql
+-- ----------------------------------------------------------------------------
+-- Sensitive profile log — flagged NSFW profiles for cross-group recognition.
+-- When a user is detected as NSFW in one group, they can be instantly banned
+-- in any other group without re-scanning.
+-- ----------------------------------------------------------------------------
+
+create table if not exists public.sensitive_profile_log (
+  user_id bigint primary key,
+  username text,
+  first_name text,
+  last_name text,
+  reason text not null,       -- 'profile_photo', 'channel_photo', 'message_photo'
+  category text not null,     -- 'Porn', 'Hentai', 'Sexy'
+  confidence real not null,
+  detected_in_chat_id bigint,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists sensitive_profile_log_created_at_idx
+  on public.sensitive_profile_log (created_at);
+
+-- ----------------------------------------------------------------------------
+-- NSFW profile check log — tracks when each user was last scanned so the bot
+-- doesn't re-download and re-classify on every single message.
+-- Only used in production (NODE_ENV=production); in development every message
+-- triggers a fresh scan for easier testing.
+-- ----------------------------------------------------------------------------
+
+create table if not exists public.nsfw_check_log (
+  user_id bigint primary key,
+  checked_at timestamptz not null default now()
+);
+
+-- >>> supabase/sql/message_authors.sql
 -- ----------------------------------------------------------------------------
 -- Message authors — remembers who wrote each message so reaction_received
 -- can be attributed to the right user. Telegram's message_reaction update
 -- does not include the author of the reacted-to message, so we record it
 -- at send time and look it up on reaction. Rows older than 30 days are
--- purged by pg_cron (see below) — reactions on older messages are rare.
+-- purged by pg_cron (see pg_cron.sql) — reactions on older messages are rare.
 -- ----------------------------------------------------------------------------
 
 create table if not exists public.message_authors (
@@ -234,6 +258,7 @@ create table if not exists public.message_authors (
 create index if not exists message_authors_created_at_idx
   on public.message_authors (created_at);
 
+-- >>> supabase/sql/pending_cards.sql
 -- ----------------------------------------------------------------------------
 -- Pending weekly cards — cron uploads rendered cards to the developer DM
 -- and stores the returned Telegram file_ids here. On approve, the bot
@@ -271,6 +296,7 @@ alter table public.pending_weekly_cards
 create index if not exists pending_weekly_cards_status_idx
   on public.pending_weekly_cards (status);
 
+-- >>> supabase/sql/stats.sql
 -- ----------------------------------------------------------------------------
 -- Group statistics — tiered aggregation (logs → weekly → monthly → yearly).
 -- Raw events are appended to `logs`, then pg_cron drains them into aggregates
@@ -281,7 +307,7 @@ create table if not exists public.logs (
   id bigserial primary key,
   chat_id bigint not null,
   user_id bigint,
-  action_type text not null,     -- message, reaction_given, reaction_received, reply, sticker, voice, media
+  action_type text not null,     -- message, reaction_given, reaction_received, reply, sticker, voice, media, video_note, gif, link
   created_at timestamptz not null default now()
 );
 
@@ -321,6 +347,7 @@ create table if not exists public.weekly_stats (
   media bigint not null default 0,
   video_notes bigint not null default 0,
   gifs bigint not null default 0,
+  links bigint not null default 0,
   updated_at timestamptz not null default now(),
   primary key (chat_id, user_id, period_start)
 );
@@ -341,6 +368,7 @@ create table if not exists public.monthly_stats (
   media bigint not null default 0,
   video_notes bigint not null default 0,
   gifs bigint not null default 0,
+  links bigint not null default 0,
   updated_at timestamptz not null default now(),
   primary key (chat_id, user_id, period_start)
 );
@@ -361,6 +389,7 @@ create table if not exists public.yearly_stats (
   media bigint not null default 0,
   video_notes bigint not null default 0,
   gifs bigint not null default 0,
+  links bigint not null default 0,
   updated_at timestamptz not null default now(),
   primary key (chat_id, user_id, period_start)
 );
@@ -368,13 +397,16 @@ create table if not exists public.yearly_stats (
 create index if not exists yearly_stats_period_idx
   on public.yearly_stats (chat_id, period_start);
 
--- Add video_note + gif columns to existing aggregate tables (idempotent).
+-- Add video_note + gif + link columns to existing aggregate tables (idempotent).
 alter table public.weekly_stats  add column if not exists video_notes bigint not null default 0;
 alter table public.weekly_stats  add column if not exists gifs        bigint not null default 0;
+alter table public.weekly_stats  add column if not exists links       bigint not null default 0;
 alter table public.monthly_stats add column if not exists video_notes bigint not null default 0;
 alter table public.monthly_stats add column if not exists gifs        bigint not null default 0;
+alter table public.monthly_stats add column if not exists links       bigint not null default 0;
 alter table public.yearly_stats  add column if not exists video_notes bigint not null default 0;
 alter table public.yearly_stats  add column if not exists gifs        bigint not null default 0;
+alter table public.yearly_stats  add column if not exists links       bigint not null default 0;
 
 -- ----------------------------------------------------------------------------
 -- Aggregation functions.
@@ -396,7 +428,8 @@ returns table (
   voices bigint,
   media bigint,
   video_notes bigint,
-  gifs bigint
+  gifs bigint,
+  links bigint
 )
 language sql stable
 as $$
@@ -410,7 +443,8 @@ as $$
     count(*) filter (where l.action_type = 'voice')             as voices,
     count(*) filter (where l.action_type = 'media')             as media,
     count(*) filter (where l.action_type = 'video_note')        as video_notes,
-    count(*) filter (where l.action_type = 'gif')               as gifs
+    count(*) filter (where l.action_type = 'gif')               as gifs,
+    count(*) filter (where l.action_type = 'link')              as links
   from public.logs l
   where l.chat_id = p_chat_id
     and l.created_at >= p_since
@@ -447,15 +481,16 @@ begin
       count(*) filter (where action_type = 'voice')              as voices,
       count(*) filter (where action_type = 'media')              as media,
       count(*) filter (where action_type = 'video_note')         as video_notes,
-      count(*) filter (where action_type = 'gif')                as gifs
+      count(*) filter (where action_type = 'gif')                as gifs,
+      count(*) filter (where action_type = 'link')               as links
       from drained
       group by chat_id, user_id, date_trunc('week', created_at)
   )
   insert into public.weekly_stats as w
     (chat_id, user_id, period_start, messages, reactions_given, reactions_received,
-     replies, stickers, voices, media, video_notes, gifs, updated_at)
+     replies, stickers, voices, media, video_notes, gifs, links, updated_at)
   select chat_id, user_id, period_start, messages, reactions_given, reactions_received,
-         replies, stickers, voices, media, video_notes, gifs, now()
+         replies, stickers, voices, media, video_notes, gifs, links, now()
     from agg
   on conflict (chat_id, user_id, period_start) do update set
     messages           = w.messages           + excluded.messages,
@@ -467,6 +502,7 @@ begin
     media              = w.media              + excluded.media,
     video_notes        = w.video_notes        + excluded.video_notes,
     gifs               = w.gifs               + excluded.gifs,
+    links              = w.links              + excluded.links,
     updated_at         = now();
 end;
 $$;
@@ -494,15 +530,16 @@ begin
       sum(voices)             as voices,
       sum(media)              as media,
       sum(video_notes)        as video_notes,
-      sum(gifs)               as gifs
+      sum(gifs)               as gifs,
+      sum(links)              as links
       from drained
       group by chat_id, user_id, date_trunc('month', period_start)
   )
   insert into public.monthly_stats as m
     (chat_id, user_id, period_start, messages, reactions_given, reactions_received,
-     replies, stickers, voices, media, video_notes, gifs, updated_at)
+     replies, stickers, voices, media, video_notes, gifs, links, updated_at)
   select chat_id, user_id, period_start, messages, reactions_given, reactions_received,
-         replies, stickers, voices, media, video_notes, gifs, now()
+         replies, stickers, voices, media, video_notes, gifs, links, now()
     from agg
   on conflict (chat_id, user_id, period_start) do update set
     messages           = m.messages           + excluded.messages,
@@ -514,6 +551,7 @@ begin
     media              = m.media              + excluded.media,
     video_notes        = m.video_notes        + excluded.video_notes,
     gifs               = m.gifs               + excluded.gifs,
+    links              = m.links              + excluded.links,
     updated_at         = now();
 end;
 $$;
@@ -541,15 +579,16 @@ begin
       sum(voices)             as voices,
       sum(media)              as media,
       sum(video_notes)        as video_notes,
-      sum(gifs)               as gifs
+      sum(gifs)               as gifs,
+      sum(links)              as links
       from drained
       group by chat_id, user_id, date_trunc('year', period_start)
   )
   insert into public.yearly_stats as y
     (chat_id, user_id, period_start, messages, reactions_given, reactions_received,
-     replies, stickers, voices, media, video_notes, gifs, updated_at)
+     replies, stickers, voices, media, video_notes, gifs, links, updated_at)
   select chat_id, user_id, period_start, messages, reactions_given, reactions_received,
-         replies, stickers, voices, media, video_notes, gifs, now()
+         replies, stickers, voices, media, video_notes, gifs, links, now()
     from agg
   on conflict (chat_id, user_id, period_start) do update set
     messages           = y.messages           + excluded.messages,
@@ -561,38 +600,12 @@ begin
     media              = y.media              + excluded.media,
     video_notes        = y.video_notes        + excluded.video_notes,
     gifs               = y.gifs               + excluded.gifs,
+    links              = y.links              + excluded.links,
     updated_at         = now();
 end;
 $$;
 
--- ----------------------------------------------------------------------------
--- pg_cron schedule — runs inside Postgres, survives bot restarts.
--- Enable the extension (Supabase: Database → Extensions → enable pg_cron).
--- ----------------------------------------------------------------------------
-
-create extension if not exists pg_cron;
-
--- Drop existing jobs before re-creating (idempotent re-run).
-do $$
-begin
-  perform cron.unschedule(jobid)
-    from cron.job
-   where jobname in ('aggregate_weekly_stats',
-                     'aggregate_monthly_stats',
-                     'aggregate_yearly_stats',
-                     'purge_message_authors');
-end;
-$$;
-
--- Weekly: every Monday at 00:05 UTC
-select cron.schedule('aggregate_weekly_stats',  '5 0 * * 1', $$select public.aggregate_weekly_stats();$$);
--- Monthly: 1st of month at 00:15 UTC
-select cron.schedule('aggregate_monthly_stats', '15 0 1 * *', $$select public.aggregate_monthly_stats();$$);
--- Yearly: Jan 1 at 00:30 UTC
-select cron.schedule('aggregate_yearly_stats',  '30 0 1 1 *', $$select public.aggregate_yearly_stats();$$);
--- Daily at 03:00 UTC: drop message_authors rows older than 7 days
-select cron.schedule('purge_message_authors',   '0 3 * * *', $$delete from public.message_authors where created_at < now() - interval '7 days';$$);
-
+-- >>> supabase/sql/youtube.sql
 -- ----------------------------------------------------------------------------
 -- YouTube useful content — curated channels + deduped video pool + click log.
 -- Daily cron fetches latest uploads from each active channel via YouTube Data
@@ -694,6 +707,7 @@ insert into public.youtube_channels (channel_id, handle, title, uploads_playlist
   ('pending:@bintusodiq',    '@bintusodiq',    'Bintu Sodiq',     'pending', true)
 on conflict (channel_id) do nothing;
 
+-- >>> supabase/sql/users.sql
 -- ----------------------------------------------------------------------------
 -- Bot users — people who have started a private chat with the bot.
 -- Separate from group_members: these are users who interact with the bot
@@ -734,9 +748,7 @@ as $$
    where user_id = p_user_id;
 $$;
 
-alter table public.users               enable row level security;
-alter table public.user_group_invites  enable row level security;
-
+-- >>> supabase/sql/rls.sql
 -- ----------------------------------------------------------------------------
 -- Row Level Security — defense in depth.
 -- The bot uses the service_role key which bypasses RLS entirely, so enabling
@@ -763,14 +775,36 @@ alter table public.yearly_stats          enable row level security;
 alter table public.youtube_channels      enable row level security;
 alter table public.useful_content        enable row level security;
 alter table public.useful_content_clicks enable row level security;
+alter table public.users                 enable row level security;
+alter table public.user_group_invites    enable row level security;
 
--- One-time backfill so existing rows get the right count immediately.
-update public.groups g
-   set member_count = coalesce(sub.cnt, 0)
-  from (
-    select chat_id, count(*) as cnt
-      from public.group_members
-     where is_bot = false
-     group by chat_id
-  ) sub
- where g.chat_id = sub.chat_id;
+-- >>> supabase/sql/pg_cron.sql
+-- ----------------------------------------------------------------------------
+-- pg_cron schedule — runs inside Postgres, survives bot restarts.
+-- Enable the extension (Supabase: Database → Extensions → enable pg_cron).
+-- Must be loaded last: all referenced aggregate functions need to exist first.
+-- ----------------------------------------------------------------------------
+
+create extension if not exists pg_cron;
+
+-- Drop existing jobs before re-creating (idempotent re-run).
+do $$
+begin
+  perform cron.unschedule(jobid)
+    from cron.job
+   where jobname in ('aggregate_weekly_stats',
+                     'aggregate_monthly_stats',
+                     'aggregate_yearly_stats',
+                     'purge_message_authors');
+end;
+$$;
+
+-- Weekly: every Monday at 00:05 UTC
+select cron.schedule('aggregate_weekly_stats',  '5 0 * * 1', $$select public.aggregate_weekly_stats();$$);
+-- Monthly: 1st of month at 00:15 UTC
+select cron.schedule('aggregate_monthly_stats', '15 0 1 * *', $$select public.aggregate_monthly_stats();$$);
+-- Yearly: Jan 1 at 00:30 UTC
+select cron.schedule('aggregate_yearly_stats',  '30 0 1 1 *', $$select public.aggregate_yearly_stats();$$);
+-- Daily at 03:00 UTC: drop message_authors rows older than 7 days
+select cron.schedule('purge_message_authors',   '0 3 * * *', $$delete from public.message_authors where created_at < now() - interval '7 days';$$);
+

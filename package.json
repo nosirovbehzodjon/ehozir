@@ -4,6 +4,8 @@
   "description": "Telegram bot that mentions all group members on /hamma or /all commands",
   "main": "dist/bot.js",
   "scripts": {
+    "build:schema": "node scripts/build-schema.mjs",
+    "prebuild": "npm run build:schema",
     "build": "tsc && tsc-alias",
     "start": "node dist/bot.js",
     "dev": "tsx watch --env-file=.env src/bot.ts",

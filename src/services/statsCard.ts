@@ -180,6 +180,7 @@ export type StatsCardData = {
     media: number;
     videoNotes: number;
     gifs: number;
+    links: number;
   };
 };
 
@@ -217,7 +218,8 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
       s.voices +
       s.media +
       s.videoNotes +
-      s.gifs;
+      s.gifs +
+      s.links;
 
     const rows: [string, string][][] = [
       [
@@ -236,7 +238,10 @@ export async function renderStatsCard(data: StatsCardData): Promise<Buffer> {
         [t.media, fmt(s.media)],
         [t.gifs, fmt(s.gifs)],
       ],
-      [[t.videoNotes, fmt(s.videoNotes)]],
+      [
+        [t.videoNotes, fmt(s.videoNotes)],
+        [t.links, fmt(s.links)],
+      ],
     ];
 
     const botHandle = (data.botUsername ?? "").replace(/^@/, "");
@@ -318,7 +323,8 @@ export type LeaderboardCategory =
   | "topVoiceSender"
   | "topMediaSender"
   | "topVideoNoteSender"
-  | "topGifSender";
+  | "topGifSender"
+  | "topLinkSender";
 
 export type LeaderboardWinner = {
   category: LeaderboardCategory;

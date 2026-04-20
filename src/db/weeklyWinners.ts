@@ -13,6 +13,7 @@ export type UserActionCounts = {
   media: number;
   videoNotes: number;
   gifs: number;
+  links: number;
 };
 
 export type WinnerRow = {
@@ -31,6 +32,7 @@ const ACTION_TO_CATEGORY: Record<ActionType, LeaderboardCategory | null> = {
   media: "topMediaSender",
   video_note: "topVideoNoteSender",
   gif: "topGifSender",
+  link: "topLinkSender",
 };
 
 /**
@@ -67,6 +69,7 @@ export async function getWeeklyActivity(
     media: number;
     video_notes: number;
     gifs: number;
+    links: number;
   };
 
   return ((data ?? []) as PivotedRow[]).map((r) => ({
@@ -80,6 +83,7 @@ export async function getWeeklyActivity(
     media: Number(r.media ?? 0),
     videoNotes: Number(r.video_notes ?? 0),
     gifs: Number(r.gifs ?? 0),
+    links: Number(r.links ?? 0),
   }));
 }
 
@@ -102,6 +106,7 @@ export function pickWinners(activity: UserActionCounts[]): WinnerRow[] {
     ["media", "topMediaSender"],
     ["videoNotes", "topVideoNoteSender"],
     ["gifs", "topGifSender"],
+    ["links", "topLinkSender"],
   ];
 
   const winners: WinnerRow[] = [];
@@ -136,7 +141,8 @@ function totalActions(u: UserActionCounts): number {
     u.voices +
     u.media +
     u.videoNotes +
-    u.gifs
+    u.gifs +
+    u.links
   );
 }
 
@@ -177,6 +183,7 @@ type StatRow = {
   media: number | null;
   video_notes: number | null;
   gifs: number | null;
+  links: number | null;
   period_start: string;
 };
 
@@ -196,6 +203,7 @@ function rowsToUserCounts(rows: StatRow[]): UserActionCounts[] {
         media: 0,
         videoNotes: 0,
         gifs: 0,
+        links: 0,
       };
       map.set(r.user_id, e);
     }
@@ -208,6 +216,7 @@ function rowsToUserCounts(rows: StatRow[]): UserActionCounts[] {
     e.media += Number(r.media ?? 0);
     e.videoNotes += Number(r.video_notes ?? 0);
     e.gifs += Number(r.gifs ?? 0);
+    e.links += Number(r.links ?? 0);
   }
   return Array.from(map.values());
 }
@@ -225,7 +234,7 @@ async function getActivityFromTable(
   const { data, error } = await supabase
     .from(table)
     .select(
-      "user_id, messages, replies, reactions_given, reactions_received, stickers, voices, media, video_notes, gifs, period_start",
+      "user_id, messages, replies, reactions_given, reactions_received, stickers, voices, media, video_notes, gifs, links, period_start",
     )
     .eq("chat_id", chatId)
     .gte("period_start", start)

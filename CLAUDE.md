@@ -90,6 +90,21 @@ supabase/
   functions/
     redirect/index.ts     — Edge Function: tracks external news clicks in DB, then 302 redirects to actual URL
     yt-redirect/index.ts  — Edge Function: tracks useful_content clicks in DB, then 302 redirects to YouTube video URL
+  sql/
+    index.sql             — Load-order manifest. Lists partials via `\i` directives.
+    groups.sql            — groups, group_members, member-count trigger, backfill
+    settings.sql          — group_settings (+ language migration), bot_settings (+ news_hours seed), legacy commands drop
+    external_news.sql     — legacy news drops, external_news, external_news_clicks
+    sensitive.sql         — sensitive_profile_log, nsfw_check_log
+    message_authors.sql   — message_authors table + index
+    pending_cards.sql     — pending_weekly_cards + alters
+    stats.sql             — logs, weekly/monthly/yearly_stats, get_weekly_action_counts RPC, aggregate_{weekly,monthly,yearly}_stats fns
+    youtube.sql           — youtube_channels, useful_content, *_clicks, increment_useful_content_sent, useful + english seeds
+    users.sql             — users, user_group_invites, increment_user_points
+    rls.sql               — enable row level security on every table
+    pg_cron.sql           — pg_cron extension + cron.schedule jobs (must load last)
+scripts/
+  build-schema.mjs        — Concatenates supabase/sql/*.sql (per index.sql order) into the generated schema.sql
 ```
 
 **Adding a new command:** Create a file in `src/commands/`, export a `registerXxx(bot)` function, import and call it in `bot.ts`. Add translations to `src/i18n/translations.ts` for all 3 languages.
@@ -98,9 +113,13 @@ supabase/
 
 **Adding a new news source:** Add a new fetcher function in `src/services/newsFetcher.ts` with a unique `source` value (e.g. `"kun"`). The stats and click tracking automatically pick up any source from the `external_news` table.
 
-### Schema (schema.sql)
+### Schema (`supabase/sql/` → generated `schema.sql`)
 
-Idempotent DDL for Supabase tables. Re-run any time the schema changes — all statements use `if not exists` / `add column if not exists` / `create or replace`.
+The source of truth is split by purpose under `supabase/sql/`. `supabase/sql/index.sql` lists the load order via psql `\i` directives, and `schema.sql` at the repo root is a **generated artifact** produced by `scripts/build-schema.mjs` (run via `npm run build:schema`; also triggered automatically by `prebuild` before every `npm run build`). The Supabase workflow is unchanged — paste `schema.sql` into the SQL Editor. All statements are idempotent (`if not exists` / `add column if not exists` / `create or replace`).
+
+**When changing the schema:** edit the relevant partial in `supabase/sql/`, then run `npm run build:schema` and commit both the partial and the regenerated `schema.sql`. Never edit `schema.sql` directly — the banner at the top warns and the next build overwrites it.
+
+Load order (from `index.sql`): `groups` → `settings` → `external_news` → `sensitive` → `message_authors` → `pending_cards` → `stats` → `youtube` → `users` → `rls` → `pg_cron`. Order matters because later files reference tables and functions defined earlier (e.g. `pg_cron.sql` must come after `stats.sql` so the cron jobs can reference `aggregate_*_stats`).
 
 ### Database Schema (Supabase / Postgres)
 
