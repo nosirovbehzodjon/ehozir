@@ -15,6 +15,7 @@ alter table public.external_news         enable row level security;
 alter table public.external_news_clicks  enable row level security;
 alter table public.sensitive_profile_log enable row level security;
 alter table public.nsfw_check_log        enable row level security;
+alter table public.pending_nsfw_bans     enable row level security;
 alter table public.message_authors       enable row level security;
 alter table public.pending_weekly_cards  enable row level security;
 alter table public.logs                  enable row level security;

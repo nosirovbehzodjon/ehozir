@@ -44,13 +44,13 @@ A multi-feature Telegram bot for Uzbek community groups built with TypeScript an
 - Enable/disable per group with `/ingliz` / `/english` / `/английский`
 - Developer commands: `/addEnglishChannel`, `/removeEnglishChannel`, `/listEnglishChannels`, `/testEnglish`, `/englishstats [YYYY-MM]`
 
-### NSFW Protection
-- Automatic detection and banning of users with sensitive content
-- Checks profile photos, personal channel photos, and message photos
-- Scans profile of users who react to messages
-- Cross-group recognition: flagged in one group = instant ban in all groups
+### NSFW Protection (opt-in)
+- Automatic detection of users with sensitive content
+- Checks profile photos, personal channel photos, message photos, and profiles of reactors
+- On detection, DMs every reachable group admin with an Approve / Dismiss inline keyboard; the first admin to respond decides. If no decision is made within 48 hours, the request auto-dismisses and no ban happens.
+- Cross-group recognition: users already flagged (approved) in one group are instantly banned in other groups without a second approval
 - Uses NSFWJS machine learning model (TensorFlow.js)
-- Always active, no configuration needed
+- Enable per-group with `/sensitive_content`, disable with `/sensitive_content_off` (default off)
 
 ### Developer Tools
 - `/testNews` — send news to current group immediately (group only)
@@ -148,6 +148,8 @@ npm run build && npm start
 | `/useful_off` | `/foydali_bekor` | `/отмена_полезного` | Disable daily useful videos |
 | `/english` | `/ingliz` | `/английский` | Enable daily English learning videos |
 | `/english_off` | `/ingliz_bekor` | `/отмена_английского` | Disable daily English learning videos |
+| `/sensitive_content` | — | — | Enable NSFW scanning with admin approval (default off) |
+| `/sensitive_content_off` | — | — | Disable NSFW scanning |
 | `/uz` | — | — | Switch to Uzbek |
 | `/ru` | — | — | Switch to Russian |
 | `/en` | — | — | Switch to English |

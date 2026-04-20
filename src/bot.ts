@@ -18,6 +18,7 @@ import { registerTestStatsCard } from "@/commands/testStatsCard";
 import { registerWeeklyStats } from "@/commands/weeklyStats";
 import { registerGreeting } from "@/commands/greeting";
 import { registerStart } from "@/commands/start";
+import { registerNsfwApproval } from "@/commands/nsfwApproval";
 import {
   startWeeklyStatsScheduler,
   startMonthlyStatsScheduler,
@@ -34,6 +35,7 @@ import {
   startEnglishContentScheduler,
 } from "@/scheduler/usefulContent";
 import { startGroupClassifierScheduler } from "@/scheduler/groupClassifier";
+import { startPendingBanExpiryScheduler } from "@/scheduler/pendingBanExpiry";
 import { initNotifier, notifyDevelopers } from "@/utils/notify";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -76,6 +78,7 @@ registerTestStatsCard(bot);
 registerWeeklyStats(bot);
 registerGreeting(bot);
 registerStart(bot);
+registerNsfwApproval(bot);
 
 // Schedulers
 startDailyNewsScheduler(bot);
@@ -85,6 +88,7 @@ startWeeklyStatsScheduler(bot);
 startMonthlyStatsScheduler(bot);
 startYearlyStatsScheduler(bot);
 startGroupClassifierScheduler(bot);
+startPendingBanExpiryScheduler(bot);
 
 // Error handler
 bot.catch(async (err) => {

@@ -6,17 +6,15 @@ import {
   downloadTelegramFile,
   type NsfwResult,
 } from "@/services/nsfw";
-import { escapeMarkdown } from "@/utils/markdown";
-import { getGroupLanguage, isFeatureEnabled } from "@/db/settings";
+import { isFeatureEnabled } from "@/db/settings";
 import { NSFW_FEATURE } from "@/commands/sensitiveContent";
-import { t } from "@/i18n";
 import {
   isKnownSensitiveUser,
-  logSensitiveProfile,
   wasRecentlyChecked,
   markAsChecked,
 } from "@/db/sensitiveLog";
-import { notifyNsfwBan } from "@/utils/notify";
+import { applyNsfwBan } from "@/services/nsfwBan";
+import { createPendingBanAndNotifyAdmins } from "@/services/nsfwApproval";
 
 const DEVELOPER_IDS = (process.env.DEVELOPER_IDS ?? "")
   .split(",")
@@ -40,11 +38,9 @@ function buildPhotoLink(
   messageId?: number,
 ): string | null {
   if (!messageId) return null;
-  // Public group/channel with a username → direct t.me/<username>/<msg>
   if (chat.username) {
     return `https://t.me/${chat.username}/${messageId}`;
   }
-  // Private supergroup: chat.id is -100XXXXXXXXXX → https://t.me/c/XXXXXXXXXX/<msg>
   if (chat.type === "supergroup" || chat.type === "channel") {
     const internal = String(chat.id).replace(/^-100/, "");
     return `https://t.me/c/${internal}/${messageId}`;
@@ -52,11 +48,6 @@ function buildPhotoLink(
   return null;
 }
 
-/**
- * Send the NSFW classification breakdown directly to every developer's DM
- * (never into the group). Includes a link back to the original photo so
- * the developer can review it in context.
- */
 async function sendDevBreakdown(
   bot: Bot,
   chat: {
@@ -91,117 +82,19 @@ async function sendDevBreakdown(
 }
 
 /**
- * Re-post a message on behalf of the original author, then delete the
- * original so the NSFW user's reaction is removed.
- * Copies the content and adds a mention of the original author.
+ * Handles a newly-detected NSFW user. Developers get an in-group notice and
+ * are never banned. Regular users enter the admin-approval flow: a pending
+ * row is created and every reachable admin receives a DM with Approve /
+ * Dismiss buttons.
  */
-async function repostAndDelete(
+async function handleNewDetection(
   bot: Bot,
-  chatId: number,
-  messageId: number,
-): Promise<void> {
-  // Forward to same chat to get the original message content + author info
-  let forwarded;
-  try {
-    forwarded = await bot.api.forwardMessage(chatId, chatId, messageId);
-  } catch {
-    return;
-  }
-
-  // Extract original author from the forwarded message
-  const origin = (forwarded as any).forward_origin;
-  let authorName = "";
-  let authorId: number | undefined;
-
-  if (origin?.type === "user" && origin.sender_user) {
-    authorId = origin.sender_user.id;
-    authorName =
-      origin.sender_user.username
-        ? `@${origin.sender_user.username}`
-        : origin.sender_user.first_name ?? "User";
-  } else if (forwarded.from) {
-    authorId = forwarded.from.id;
-    authorName =
-      forwarded.from.username
-        ? `@${forwarded.from.username}`
-        : forwarded.from.first_name ?? "User";
-  }
-
-  // Delete the forwarded copy
-  try {
-    await bot.api.deleteMessage(chatId, forwarded.message_id);
-  } catch {
-    // ignore
-  }
-
-  // Build attribution suffix — skip for bot's own posts
-  const botId = bot.botInfo?.id;
-  const isOwnPost = authorId === botId;
-
-  let suffix = "";
-  if (!isOwnPost && authorId) {
-    const lang = await getGroupLanguage(chatId);
-    const mention = `[${escapeMarkdown(authorName)}](tg://user?id=${authorId})`;
-    const explanation = escapeMarkdown(t(lang).nsfwReactionRepost);
-    suffix = `\n\n✍️ ${mention}\n${explanation}`;
-  }
-
-  // Re-send the message with attribution embedded in the content
-  try {
-    if (forwarded.text) {
-      // Text message — append attribution to the text
-      const text = escapeMarkdown(forwarded.text) + suffix;
-      await bot.api.sendMessage(chatId, text, {
-        parse_mode: "MarkdownV2",
-      });
-    } else if (forwarded.photo && forwarded.photo.length > 0) {
-      // Photo message — use original caption + attribution as caption
-      const originalCaption = forwarded.caption
-        ? escapeMarkdown(forwarded.caption)
-        : "";
-      const caption = originalCaption + suffix;
-      const photoId = forwarded.photo[forwarded.photo.length - 1].file_id;
-      await bot.api.sendPhoto(chatId, photoId, {
-        caption: caption || undefined,
-        parse_mode: caption ? "MarkdownV2" : undefined,
-      });
-    } else if (forwarded.video) {
-      const originalCaption = forwarded.caption
-        ? escapeMarkdown(forwarded.caption)
-        : "";
-      const caption = originalCaption + suffix;
-      await bot.api.sendVideo(chatId, forwarded.video.file_id, {
-        caption: caption || undefined,
-        parse_mode: caption ? "MarkdownV2" : undefined,
-      });
-    } else if (forwarded.document) {
-      const originalCaption = forwarded.caption
-        ? escapeMarkdown(forwarded.caption)
-        : "";
-      const caption = originalCaption + suffix;
-      await bot.api.sendDocument(chatId, forwarded.document.file_id, {
-        caption: caption || undefined,
-        parse_mode: caption ? "MarkdownV2" : undefined,
-      });
-    } else {
-      // Other message types — just copy without attribution
-      await bot.api.copyMessage(chatId, chatId, messageId);
-    }
-  } catch {
-    return;
-  }
-
-  // Delete the original message (reaction goes with it)
-  try {
-    await bot.api.deleteMessage(chatId, messageId);
-  } catch {
-    // May fail if bot lacks delete permission
-  }
-}
-
-async function banAndNotify(
-  bot: Bot,
-  chatId: number,
+  chat: {
+    id: number;
+    type: string;
+    title?: string | null;
+    username?: string | null;
+  },
   user: User,
   reason: string,
   category: string,
@@ -211,95 +104,71 @@ async function banAndNotify(
 ): Promise<void> {
   const userName = user.first_name || user.username || "User";
 
-  // Developers are never banned — just notify them
   if (isDeveloper(user.id)) {
     const devMsg = `NSFW detected (${reason}): ${category} (${(confidence * 100).toFixed(1)}%) — you are a developer, no ban applied.`;
     try {
-      await bot.api.sendMessage(chatId, devMsg, {
+      await bot.api.sendMessage(chat.id, devMsg, {
         reply_parameters: messageId ? { message_id: messageId } : undefined,
       });
     } catch {
       // ignore
     }
     console.log(
-      `NSFW ${reason} (developer skip): ${userName} (${user.id}) in ${chatId} — ${category} ${(confidence * 100).toFixed(1)}%`,
+      `NSFW ${reason} (developer skip): ${userName} (${user.id}) in ${chat.id} — ${category} ${(confidence * 100).toFixed(1)}%`,
     );
     return;
   }
 
-  // Log to sensitive_profile_log for cross-group recognition
-  await logSensitiveProfile({
-    userId: user.id,
-    username: user.username ?? null,
-    firstName: user.first_name ?? null,
-    lastName: user.last_name ?? null,
+  await createPendingBanAndNotifyAdmins(bot, {
+    chatId: chat.id,
+    user,
     reason,
     category,
     confidence,
-    detectedInChatId: chatId,
+    messageId,
+    reactionMessageId,
+    groupTitle: chat.title ?? null,
   });
 
-  // Delete the offending message (sent by the NSFW user)
-  if (messageId) {
-    try {
-      await bot.api.deleteMessage(chatId, messageId);
-    } catch {
-      // May fail if bot lacks delete permission
-    }
-  }
-
-  // Ban the user
-  try {
-    await bot.api.banChatMember(chatId, user.id);
-  } catch {
-    // May fail if bot lacks ban permission
-  }
-
-  // If triggered by a reaction: re-post the original message content
-  // (preserving the author's text/media), then delete the original
-  // so the NSFW user's reaction is removed
-  if (reactionMessageId) {
-    await repostAndDelete(bot, chatId, reactionMessageId);
-  }
-
-  await notifyNsfwBan(user, chatId, reason, category, confidence);
-
   console.log(
-    `NSFW ${reason}: ${userName} (${user.id}) in ${chatId} — ${category} ${(confidence * 100).toFixed(1)}%`,
+    `NSFW ${reason} (pending admin approval): ${userName} (${user.id}) in ${chat.id} — ${category} ${(confidence * 100).toFixed(1)}%`,
   );
 }
 
 /**
  * Check user's profile photo and personal channel photo.
- * Returns true if NSFW was detected and user was banned/notified.
+ * Returns true if an action was taken (instant ban OR pending approval).
  */
 async function checkUserProfile(
   bot: Bot,
-  chatId: number,
+  chat: {
+    id: number;
+    type: string;
+    title?: string | null;
+    username?: string | null;
+  },
   user: User,
   messageId?: number,
   reactionMessageId?: number,
 ): Promise<boolean> {
   if (user.is_bot) return false;
 
-  // Skip users checked in the last 24h (persisted in DB)
   const checked = await wasRecentlyChecked(user.id);
   if (checked) return false;
 
-  // Mark as checked immediately to prevent duplicate checks
   await markAsChecked(user.id);
 
   console.log(
     `NSFW: checking profile of ${user.first_name ?? user.id} (${user.id})`,
   );
 
-  // 1. Check if already flagged in another group → instant ban (skip for developers)
+  // 1. Already flagged in another group → instant cross-group ban (skipped for developers)
   if (!isDeveloper(user.id)) {
     const isKnown = await isKnownSensitiveUser(user.id);
     if (isKnown) {
-      await banAndNotify(
+      await applyNsfwBan(
         bot,
-        chatId,
+        chat.id,
         user,
         "known_sensitive",
         "Previously flagged",
@@ -311,14 +180,11 @@ async function checkUserProfile(
     }
   }
 
-  // 2. Check profile photo
+  // 2. Profile photo
   try {
-    const photos = await bot.api.getUserProfilePhotos(user.id, {
-      limit: 1,
-    });
+    const photos = await bot.api.getUserProfilePhotos(user.id, { limit: 1 });
     if (photos.total_count > 0 && photos.photos.length > 0) {
       const photoSizes = photos.photos[0];
-      // Use the largest available size for best accuracy
       const photo = photoSizes[photoSizes.length - 1];
       const file = await bot.api.getFile(photo.file_id);
 
@@ -332,9 +198,9 @@ async function checkUserProfile(
           `NSFW: profile photo result for ${user.id}: ${result.category} (${(result.confidence * 100).toFixed(1)}%)`,
         );
         if (result.isNsfw) {
-          await banAndNotify(
+          await handleNewDetection(
             bot,
-            chatId,
+            chat,
             user,
             "profile_photo",
             result.category,
@@ -352,7 +218,7 @@ async function checkUserProfile(
     console.error(`NSFW: profile photo check failed for ${user.id}:`, err);
   }
 
-  // 3. Check personal channel photo
+  // 3. Personal channel photo
   try {
     const userChat = await bot.api.getChat(user.id);
     const personalChat = (userChat as any).personal_chat;
@@ -374,9 +240,9 @@ async function checkUserProfile(
               `NSFW: channel photo result for ${user.id}: ${result.category} (${(result.confidence * 100).toFixed(1)}%)`,
             );
             if (result.isNsfw) {
-              await banAndNotify(
+              await handleNewDetection(
                 bot,
-                chatId,
+                chat,
                 user,
                 "channel_photo",
                 result.category,
@@ -389,7 +255,7 @@ async function checkUserProfile(
           }
         }
       } catch {
-        // May fail if channel is private or inaccessible
+        // channel may be private or inaccessible
       }
     }
   } catch (err) {
@@ -414,13 +280,19 @@ export function registerNsfwMiddleware(bot: Bot) {
       try {
         const enabled = await isFeatureEnabled(chat.id, NSFW_FEATURE, false);
         if (enabled) {
-          const banned = await checkUserProfile(
+          const chatInfo = {
+            id: chat.id,
+            type: chat.type,
+            title: "title" in chat ? chat.title : null,
+            username: "username" in chat ? chat.username : null,
+          };
+          const handled = await checkUserProfile(
             bot,
-            chat.id,
+            chatInfo,
             user,
             ctx.msg?.message_id,
           );
-          if (banned) return;
+          if (handled) return;
         }
       } catch (err) {
         console.error("NSFW profile check error:", err);
@@ -446,30 +318,30 @@ export function registerNsfwMiddleware(bot: Bot) {
         if (enabled) {
           const photoArray = ctx.msg?.photo;
           if (photoArray && photoArray.length > 0) {
-            // Use the largest photo for best accuracy
             const photo = photoArray[photoArray.length - 1];
             const file = await ctx.api.getFile(photo.file_id);
 
             if (file.file_path) {
               const buffer = await downloadTelegramFile(file.file_path);
               const result = await classifyImage(buffer);
+              const chatInfo = {
+                id: chat.id,
+                type: chat.type,
+                title: "title" in chat ? chat.title : null,
+                username: "username" in chat ? chat.username : null,
+              };
               await sendDevBreakdown(
                 bot,
-                {
-                  id: chat.id,
-                  type: chat.type,
-                  title: "title" in chat ? chat.title : null,
-                  username: "username" in chat ? chat.username : null,
-                },
+                chatInfo,
                 result,
                 "Message photo",
                 ctx.msg?.message_id,
               );
 
               if (result.isNsfw) {
-                await banAndNotify(
+                await handleNewDetection(
                   bot,
-                  chat.id,
+                  chatInfo,
                   user,
                   "message_photo",
                   result.category,
@@ -511,14 +383,20 @@ export function registerNsfwMiddleware(bot: Bot) {
             `NSFW: reaction from ${user.first_name ?? user.id} (${user.id}) in ${chat.id} on message ${reactedMessageId}`,
           );
 
-          const banned = await checkUserProfile(
+          const chatInfo = {
+            id: chat.id,
+            type: chat.type,
+            title: "title" in chat ? chat.title : null,
+            username: "username" in chat ? chat.username : null,
+          };
+          const handled = await checkUserProfile(
             bot,
-            chat.id,
+            chatInfo,
             user,
             undefined,
             reactedMessageId,
           );
-          if (banned) return;
+          if (handled) return;
         }
       } catch (err) {
         console.error("NSFW reaction check error:", err);

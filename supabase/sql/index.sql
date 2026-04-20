@@ -10,6 +10,7 @@
 \i settings.sql
 \i external_news.sql
 \i sensitive.sql
+\i pending_bans.sql
 \i message_authors.sql
 \i pending_cards.sql
 \i stats.sql

@@ -51,6 +51,7 @@ src/
     botSettings.ts        — Bot-wide settings (news hours, global config)
     news.ts               — External news DB functions (insert, click tracking, stats)
     sensitiveLog.ts       — NSFW profile log & check cache (sensitive_profile_log, nsfw_check_log)
+    pendingBans.ts        — Pending NSFW ban rows (admin-approval flow): createPendingBan (partial-unique per chat+user), setAdminNotifications (records per-admin DM message ids), getPendingBan, resolvePendingBan (atomic pending→approved/rejected/expired transition via `.eq("status", "pending")`), getExpiredPendingBans (for the 48h expiry scheduler)
     youtubeChannels.ts    — Curated YouTube channel list CRUD (youtube_channels)
     usefulContent.ts      — Useful content pool + click tracking + per-group delivery helpers (useful_content, useful_content_clicks). Includes pickUsefulContentForDelivery (channel round-robin), send-count bumping, prune exhausted/old rows, and getMonthlyUsefulClicksByChannel for /usefulstats. All category-aware (`useful` vs `english`) — english learning content shares the same tables, distinguished by the `category` column. `getGroupsWithFeatureEnabled(feature)` powers both schedulers.
   commands/
@@ -65,6 +66,7 @@ src/
     usefulContent.ts      — /foydali, /useful, /полезное — enable/disable daily useful YouTube videos (group). Also /testUseful (dev group), /addChannel /removeChannel /listChannels (dev bot DM)
     englishContent.ts     — /ingliz, /english, /английский — enable/disable daily English learning videos (group). Also /testEnglish (dev group), /addEnglishChannel /removeEnglishChannel /listEnglishChannels /englishstats (dev bot DM)
     language.ts           — /uz, /ru, /en — change group language (group only)
+    nsfwApproval.ts       — Callback handlers for `nsfw:approve:<id>` and `nsfw:reject:<id>` inline buttons. Delegates to services/nsfwApproval, then sends a toast to the clicker. No slash command — pure callback handlers.
     start.ts              — /start — private-chat onboarding: upserts the user into `users`, shows a 3-button language picker (uz/ru/en) on first run, then a welcome with the user's current points, an inline "Add bot to a group" button (t.me/<bot>?startgroup=true), and a Capabilities button that replies with `capabilitiesFull`. Subsequent /start calls skip the picker.
     settings.ts           — /settings — configure news delivery times via inline keyboard (bot chat, developer-only)
     newsStats.ts          — /newsstats — news click statistics per source (bot chat, developer-only)
@@ -73,6 +75,8 @@ src/
     nsfw.ts               — NSFW protection (profile photos, channel photos, message photos, reactions)
   services/
     nsfw.ts               — NSFWJS model loader, image classification, Telegram file download
+    nsfwBan.ts            — Ban execution: logSensitiveProfile, deleteMessage, banChatMember, repost-and-delete (for reactions), notifyNsfwBan. Called by both the middleware (known_sensitive instant ban) and the approval service (after admin approves).
+    nsfwApproval.ts       — Admin-approval flow: createPendingBanAndNotifyAdmins (creates pending row + DMs every reachable admin), approvePendingBan / rejectPendingBan / expirePendingBan (atomic resolve + edits all admin DMs to show final decision). All DMs are localized to each admin's `users.language`.
     newsFetcher.ts        — Fetch latest news from daryo.uz API
     youtube.ts            — YouTube Data API v3 client: resolveChannel (channels.list) + fetchLatestUploads (playlistItems.list on uploads playlist)
   scheduler/
@@ -80,6 +84,7 @@ src/
     usefulContent.ts      — Two parallel cron jobs (useful + english) fetch curated YouTube channel uploads and deliver them daily. Useful at `useful_content_hours` (default 10, Tashkent), English at `english_content_hours` (default 16, Tashkent). Both reuse the same core pipeline via a `ContentKind` config; exports `start{Useful,English}ContentScheduler`, `sendDaily{Useful,English}Content`, and `send{Useful,English}ContentToChat`.
     weeklyStats.ts        — Weekly/monthly/yearly leaderboard + champion cards. Exports runStatsNow(period, chatId?), runWeeklyStatsNow(bot, chatId?), runMonthlyStatsNow(bot, chatId?), runYearlyStatsNow(bot, chatId?), and the three start*StatsScheduler functions. Passing a chatId narrows the job to a single group — the `/test*stats [chat_id]` commands use this to avoid running against every group during manual testing. Monthly/yearly runs trigger pg aggregate RPCs before reading the aggregate tables.
     groupClassifier.ts    — Classifies each tracked group as `'group'` or `'discussion'` by checking `linked_chat_id` on the full Chat object (`bot.api.getChat`). Exports classifyGroup(api, chatId), refreshAllGroupKinds(bot), and startGroupClassifierScheduler(bot) which runs Sun 03:00 Tashkent. Greeting handler also calls classifyGroup on join so new groups are classified immediately.
+    pendingBanExpiry.ts   — Auto-dismisses pending NSFW bans older than 48h. Runs once at startup (catches rows that aged past 48h while the bot was down) and hourly thereafter. Calls services/nsfwApproval.expirePendingBan which atomically transitions pending→expired and edits every admin DM to show the auto-dismiss notice.
   i18n/
     translations.ts       — All translations (uz/ru/en) with type-safe Translation type
     index.ts              — t(lang) helper, onCommand() for Latin + Cyrillic command aliases
@@ -96,6 +101,7 @@ supabase/
     settings.sql          — group_settings (+ language migration), bot_settings (+ news_hours seed), legacy commands drop
     external_news.sql     — legacy news drops, external_news, external_news_clicks
     sensitive.sql         — sensitive_profile_log, nsfw_check_log
+    pending_bans.sql      — pending_nsfw_bans (admin-approval flow) + partial unique index on (chat_id, user_id) where status='pending'
     message_authors.sql   — message_authors table + index
     pending_cards.sql     — pending_weekly_cards + alters
     stats.sql             — logs, weekly/monthly/yearly_stats, get_weekly_action_counts RPC, aggregate_{weekly,monthly,yearly}_stats fns
@@ -119,7 +125,7 @@ The source of truth is split by purpose under `supabase/sql/`. `supabase/sql/ind
 
 **When changing the schema:** edit the relevant partial in `supabase/sql/`, then run `npm run build:schema` and commit both the partial and the regenerated `schema.sql`. Never edit `schema.sql` directly — the banner at the top warns and the next build overwrites it.
 
-Load order (from `index.sql`): `groups` → `settings` → `external_news` → `sensitive` → `message_authors` → `pending_cards` → `stats` → `youtube` → `users` → `rls` → `pg_cron`. Order matters because later files reference tables and functions defined earlier (e.g. `pg_cron.sql` must come after `stats.sql` so the cron jobs can reference `aggregate_*_stats`).
+Load order (from `index.sql`): `groups` → `settings` → `external_news` → `sensitive` → `pending_bans` → `message_authors` → `pending_cards` → `stats` → `youtube` → `users` → `rls` → `pg_cron`. Order matters because later files reference tables and functions defined earlier (e.g. `pg_cron.sql` must come after `stats.sql` so the cron jobs can reference `aggregate_*_stats`).
 
 ### Database Schema (Supabase / Postgres)
 
@@ -140,8 +146,9 @@ Load order (from `index.sql`): `groups` → `settings` → `external_news` → `
 - `youtube_channels(channel_id PK, handle, title, uploads_playlist_id, is_active, added_at, category)` — curated YouTube channel list. `uploads_playlist_id` is cached from `channels.list` so the daily cron only pays 1 quota unit per channel (`playlistItems.list`). `category` is `'useful'` (default) or `'english'` — lets one table back both features.
 - `useful_content(id serial PK, video_id unique, channel_id FK->youtube_channels, channel_title, title, thumbnail_url, link, published_at, fetched_at, send_count, category)` — deduped YouTube video pool. `send_count` tracks how many times a row has been broadcast; the scheduler prunes rows when it hits 2, and also prunes anything older than 365 days. `category` mirrors the channel's category so picks/prunes/stats can filter between useful and english pools.
 - `useful_content_clicks(id serial PK, content_id FK->useful_content, chat_id, clicked_at)` — click tracking for useful videos.
-- `sensitive_profile_log(user_id PK, username, first_name, last_name, reason, category, confidence, detected_in_chat_id, created_at)` — flagged NSFW profiles for cross-group instant banning.
+- `sensitive_profile_log(user_id PK, username, first_name, last_name, reason, category, confidence, detected_in_chat_id, created_at)` — approved NSFW bans (one row per user). Used as the cross-group "already flagged" set: users in this table are banned instantly in any other group with NSFW scanning enabled, no second admin approval needed. Only populated by `applyNsfwBan` (called after an admin approves or for already-flagged users), never by a bare detection.
 - `nsfw_check_log(user_id PK, checked_at)` — tracks when each user was last NSFW-scanned (24h TTL, production only).
+- `pending_nsfw_bans(id PK, user_id, chat_id, username, first_name, last_name, reason, category, confidence, message_id, reaction_message_id, group_title, admin_notifications jsonb, status, resolved_by, resolved_at, created_at)` — pending admin-approval rows created when a new NSFW account is detected. `status` is `pending` / `approved` / `rejected` / `expired`. `admin_notifications` is a JSONB array of `{admin_id, message_id}` recording every DM sent, so the service can edit them all when the status transitions. A partial unique index on `(chat_id, user_id) where status='pending'` prevents duplicate requests while one is already open.
 - `users(user_id PK, username, first_name, last_name, language, points, started_at, last_seen)` — bot users who have DM'd `/start`. Separate from `group_members`: these are direct bot users accruing invite points. `points` is bumped by the `increment_user_points(p_user_id, p_delta)` RPC.
 - `user_group_invites(user_id, chat_id, points_awarded, created_at, PK(user_id, chat_id))` — one row per (inviter, group). PK uniqueness makes `awardInvitePoints` idempotent — removing and re-adding the bot to the same group does not re-credit the inviter.
 
@@ -153,7 +160,10 @@ Load order (from `index.sql`): `groups` → `settings` → `external_news` → `
 - **Multi-source member tracking**: Members are captured from messages, `new_chat_members`, and `chat_member` status updates. The `chat_member` source requires admin rights.
 - **`allowed_updates` opt-in**: `chat_member`, `my_chat_member`, `message_reaction`, and `callback_query` must be listed in `bot.start()`.
 - **NSFW protection (opt-in per group, default OFF)**: Uses NSFWJS (TensorFlow.js pure JS) to classify images. Checks profile photos, personal channel photos, message photos, and reaction senders. Thresholds: Porn/Hentai/Sexy > 40%. Enabled per group via `/sensitive_content` (stored as `group_settings.feature='nsfwCheck'`). All three NSFW middleware handlers early-return if the feature is disabled for the chat.
-- **Cross-group NSFW recognition**: Flagged users are logged to `sensitive_profile_log`. If detected in one group, they're instantly banned in any other group without re-scanning.
+- **Admin-approval flow for new NSFW detections**: A newly detected NSFW account is NOT banned directly. Instead `createPendingBanAndNotifyAdmins` inserts a row into `pending_nsfw_bans` and DMs every reachable admin of the chat with an Approve / Dismiss inline keyboard. "Reachable" = `getChatAdministrators` ∩ rows in the `users` table (i.e. admins who have `/start`-ed the bot in private chat; Telegram rejects sends to strangers). Any bot admins and unreachable admins are skipped. The message-id of every sent DM is persisted in `admin_notifications`. The first admin to click Approve or Dismiss wins via an atomic UPDATE guarded by `.eq("status", "pending")` — subsequent clicks return `already_resolved`. On approve, `applyNsfwBan` runs (logs to `sensitive_profile_log`, deletes the offending message, bans the user, reposts-and-deletes for reactions, sends the developer ban notification). Every admin DM is then edited to show the final decision. If no admin is reachable, a dedup'd developer DM is sent so operators know detection happened without a decision channel; the request auto-dismisses after 48h.
+- **48h pending-ban expiry**: `scheduler/pendingBanExpiry` runs once at startup (catches rows aged past 48h while the bot was down) and hourly thereafter. Still-pending rows older than 48h are transitioned to `expired` via the same atomic guard and every admin DM is edited to the "auto-dismissed" notice.
+- **Clicker authorization**: The approve/reject callback handlers verify the clicker's user id is present in `admin_notifications` — i.e. they were DMed as an admin when detection happened. This avoids extra `getChatAdministrators` calls per click and tolerates admin changes that happen after detection.
+- **Cross-group NSFW recognition**: Users *approved* (or previously flagged) in one group live in `sensitive_profile_log`. When they appear in another group, the middleware calls `applyNsfwBan` directly with reason=`known_sensitive` — no second approval required. Only approved detections (not pending ones) end up in this table, so admin judgment propagates across every group.
 - **NSFW check caching**: In production, each user is only scanned once per 24h (persisted in `nsfw_check_log`). In development, every message triggers a fresh scan for testing.
 - **Developer exemption**: Developers (from `DEVELOPER_IDS`) are never banned — they receive a text notification instead. Message photo classifications show full category percentages to developers.
 - **Reaction handling**: When an NSFW user reacts to a post, their reaction can't be removed via API. Instead, the original post is deleted and re-posted by the bot with attribution mentioning the original author.
@@ -248,14 +258,15 @@ Each command has aliases in Uzbek, Russian, and English:
 
 ## NSFW Protection
 
-The bot automatically detects and bans users with NSFW content:
+The bot detects NSFW content and, for new detections, asks group admins to approve the ban:
 
 - **Profile photos**: Checked when a user sends any message (cached 24h in production)
 - **Personal channel photos**: User's linked Telegram channel photo is also checked
 - **Message photos**: Every photo sent in the group is classified in real-time
 - **Reactions**: When a user reacts to a message, their profile is checked
-- **Cross-group**: Flagged users are instantly banned in all groups without re-scanning
-- **Developer mode**: Developers see classification percentages for message photos, are never banned
+- **Admin approval (new detections)**: On detection, the bot DMs every reachable group admin (admins who have `/start`-ed the bot) with an Approve / Dismiss keyboard. First admin to click wins. No decision within 48 hours = auto-dismiss, no ban. Unreachable admins are silently skipped; if zero admins are reachable a dedup'd developer DM is sent.
+- **Cross-group (already approved)**: Users already in `sensitive_profile_log` from a prior approval are banned instantly in any other group — no second approval needed.
+- **Developer mode**: Developers see classification percentages for message photos, are never banned, never create pending rows.
 
 Classification uses NSFWJS with 5 categories (Neutral, Drawing, Sexy, Hentai, Porn). Ban threshold: 40% for Sexy, Hentai, or Porn.
 
